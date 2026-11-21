@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  BellRing,
   IndianRupee,
   MapPin,
   Mic,
@@ -31,6 +32,9 @@ interface DashboardHomeProps {
   advisory: SellVsStoreAdvisory;
   activePoolCount: number;
   communityPostCount: number;
+  activeAlertCount: number;
+  unreadAlertCount: number;
+  onOpenAlerts: () => void;
   language: LanguageCode;
   t: UiStrings;
   onSelectTab: (tab: WorkspaceTab) => void;
@@ -47,6 +51,9 @@ export function DashboardHome({
   advisory,
   activePoolCount,
   communityPostCount,
+  activeAlertCount,
+  unreadAlertCount,
+  onOpenAlerts,
   language,
   t,
   onSelectTab,
@@ -216,6 +223,21 @@ export function DashboardHome({
               );
             })}
           </div>
+
+          <button
+            type="button"
+            data-testid="dashboard-alerts-btn"
+            onClick={onOpenAlerts}
+            className="min-h-[44px] px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-sm font-bold inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+          >
+            <BellRing className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span>{t.alerts.buttonLabel}</span>
+            {(unreadAlertCount > 0 || activeAlertCount > 0) && (
+              <span className="font-mono tabular-nums text-xs px-1.5 py-0.5 rounded-md bg-slate-950 text-amber-300">
+                {unreadAlertCount > 0 ? unreadAlertCount : activeAlertCount}
+              </span>
+            )}
+          </button>
         </div>
       </section>
 

@@ -179,6 +179,11 @@ export function FloatingAiChatbot({
         body: JSON.stringify({
           messages: nextMessages.map((m) => ({ role: m.role, text: m.text })),
           language,
+          localeContext: {
+            languageName: t.languageName,
+            assistantTitle: t.chatbot.title,
+            greeting: t.chatbot.greeting,
+          },
           groundingMode,
           latLng: {
             latitude: activeCoords.lat,
@@ -186,10 +191,10 @@ export function FloatingAiChatbot({
           },
           context: {
             crop: `${crop.nameEn} (${crop.nameHi})`,
-            originDistrict: district.label,
+            originDistrict: `${district.label} (${district.labelHi})`,
             quantityQtl,
             quality,
-            topMandiName: topMandi.mandi.name,
+            topMandiName: `${topMandi.mandi.name} (${topMandi.mandi.nameHi})`,
             topMandiNetProfitRs: topMandi.netProfitRs,
             topMandiGradeAdjustedPricePerQtl: topMandi.gradeAdjustedPricePerQtl,
             sellVsStoreVerdict: advisory.verdict,
@@ -205,15 +210,26 @@ export function FloatingAiChatbot({
         reply?: string;
         error?: string;
         groundingUsed?: 'search' | 'maps' | 'none';
+        modelUsed?: string;
         sources?: GroundingSource[];
       } = {};
       try {
         data = rawBody ? JSON.parse(rawBody) : {};
-      } catch {
+      } catch (parseErr) {
+        console.error('[FloatingAiChatbot] Failed to parse /api/chat JSON response:', {
+          status: response.status,
+          rawBody: rawBody.slice(0, 300),
+          parseErr,
+        });
         throw new Error('Server returned an unexpected response. Please try again.');
       }
 
       if (!response.ok || !data.reply) {
+        console.error('[FloatingAiChatbot] /api/chat request failed:', {
+          status: response.status,
+          error: data.error,
+          body: data,
+        });
         throw new Error(data.error || 'AI Assistant could not respond. Please try again.');
       }
 
@@ -229,10 +245,16 @@ export function FloatingAiChatbot({
       ]);
     } catch (err) {
       const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+      console.error('[FloatingAiChatbot] Error while contacting Gemini chat API:', {
+        isTimeout,
+        language,
+        groundingMode,
+        error: err,
+      });
       setLastFailedText(clean);
       setError(
         isTimeout
-          ? 'Request took too long. Please check your connection and tap Retry.'
+          ? t.chatbot.timeoutError
           : err instanceof Error
             ? err.message
             : 'Unable to connect to AI Assistant.'
@@ -282,7 +304,9 @@ export function FloatingAiChatbot({
                   {t.chatbot.title}
                 </h2>
                 <p className="text-[11px] text-emerald-100 truncate">
-                  {crop.nameEn} · {topMandi.mandi.districtLabel} ({formatINR(topMandi.netProfitRs)})
+                  {language !== 'en' ? crop.nameHi : crop.nameEn} ·{' '}
+                  {language !== 'en' ? topMandi.mandi.nameHi : topMandi.mandi.districtLabel} (
+                  {formatINR(topMandi.netProfitRs)})
                 </p>
               </div>
             </div>
@@ -311,15 +335,17 @@ export function FloatingAiChatbot({
           <div
             className="px-3.5 py-2 bg-emerald-50/70 border-b border-emerald-100 flex items-center justify-between gap-2 shrink-0"
             role="group"
-            aria-label="Live data source mode"
+            aria-label={t.chatbot.liveDataLabel}
           >
-            <span className="text-[11px] font-semibold text-emerald-950">Live Data:</span>
+            <span className="text-[11px] font-semibold text-emerald-950">
+              {t.chatbot.liveDataLabel}
+            </span>
             <div className="inline-flex items-center gap-1">
               {(
                 [
-                  { id: 'auto', label: 'Auto', icon: Sparkles },
-                  { id: 'search', label: 'Google Search', icon: Globe },
-                  { id: 'maps', label: 'Google Maps', icon: MapPin },
+                  { id: 'auto', label: t.chatbot.autoLabel, icon: Sparkles },
+                  { id: 'search', label: t.chatbot.searchLabel, icon: Globe },
+                  { id: 'maps', label: t.chatbot.mapsLabel, icon: MapPin },
                 ] as const
               ).map(({ id, label, icon: Icon }) => {
                 const active = groundingMode === id;
@@ -369,8 +395,8 @@ export function FloatingAiChatbot({
                     <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1.5">
                       <p className="text-[10px] font-semibold text-slate-500">
                         {m.groundingUsed === 'maps'
-                          ? 'Google Maps Places & Links:'
-                          : 'Verified Web Sources:'}
+                          ? t.chatbot.mapsSourcesLabel
+                          : t.chatbot.webSourcesLabel}
                       </p>
                       <div className="flex flex-col gap-1">
                         {m.sources.map((src) => (
@@ -412,8 +438,8 @@ export function FloatingAiChatbot({
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" aria-hidden="true" />
                 <span>
                   {groundingMode === 'maps'
-                    ? 'Checking Google Maps...'
-                    : 'Thinking & checking mandi data...'}
+                    ? t.chatbot.checkingMapsLabel
+                    : t.chatbot.thinkingLabel}
                 </span>
               </div>
             )}
@@ -432,7 +458,7 @@ export function FloatingAiChatbot({
                     onClick={() => sendMessage(lastFailedText, true)}
                     className="px-2.5 py-1 rounded-md bg-red-700 hover:bg-red-800 text-white font-semibold shrink-0 transition-colors"
                   >
-                    Retry
+                    {t.chatbot.retryBtn}
                   </button>
                 )}
               </div>

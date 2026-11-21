@@ -1,4 +1,4 @@
-import { Menu, Mic, Sprout, X } from 'lucide-react';
+import { Bell, Menu, Mic, Sprout, X } from 'lucide-react';
 import { useState } from 'react';
 import type { UiStrings } from '../utils/i18n';
 
@@ -14,10 +14,18 @@ export type WorkspaceTab =
 interface TopBarProps {
   activeTab: WorkspaceTab;
   onSelectTab: (tab: WorkspaceTab) => void;
+  unreadAlertCount: number;
+  onOpenAlerts: () => void;
   t: UiStrings;
 }
 
-export function TopBar({ activeTab, onSelectTab, t }: TopBarProps) {
+export function TopBar({
+  activeTab,
+  onSelectTab,
+  unreadAlertCount,
+  onOpenAlerts,
+  t,
+}: TopBarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems: { id: WorkspaceTab; label: string }[] = [
@@ -45,7 +53,7 @@ export function TopBar({ activeTab, onSelectTab, t }: TopBarProps) {
 
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-8">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4 sm:gap-8">
         {/* Zone 1: Single-line brand wordmark */}
         <button
           type="button"
@@ -89,8 +97,28 @@ export function TopBar({ activeTab, onSelectTab, t }: TopBarProps) {
           })}
         </nav>
 
-        {/* Zone 3: 1 primary action + mobile menu trigger */}
+        {/* Zone 3: Price Alerts Bell + primary Voice CTA + mobile menu trigger */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            data-testid="topbar-alerts-btn"
+            onClick={onOpenAlerts}
+            aria-label={t.alerts.buttonLabel}
+            title={t.alerts.buttonLabel}
+            className="relative inline-flex items-center justify-center gap-1.5 h-10 sm:h-9 px-2.5 sm:px-3 rounded-lg border border-slate-300 bg-white hover:bg-amber-50 hover:border-amber-400 text-slate-900 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+          >
+            <Bell className="w-4 h-4 text-amber-700 shrink-0" aria-hidden="true" />
+            <span className="hidden lg:inline">{t.alerts.buttonLabel}</span>
+            {unreadAlertCount > 0 && (
+              <span
+                data-testid="topbar-alerts-badge"
+                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white font-mono tabular-nums text-[10px] font-bold"
+              >
+                {unreadAlertCount > 9 ? '9+' : unreadAlertCount}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             data-testid="nav-voice-cta"
@@ -106,7 +134,7 @@ export function TopBar({ activeTab, onSelectTab, t }: TopBarProps) {
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
-            className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-lg border border-slate-300 text-slate-900 hover:bg-slate-50"
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-300 text-slate-900 hover:bg-slate-50"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>

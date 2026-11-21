@@ -411,6 +411,7 @@ Estimate realistic mandi gate quality metrics:
       const {
         messages,
         language = 'hi',
+        localeContext,
         context,
         groundingMode = 'auto',
         latLng,
@@ -428,6 +429,15 @@ Estimate realistic mandi gate quality metrics:
         en: 'clear simple English',
       };
 
+      const localeName =
+        typeof localeContext?.languageName === 'string' && localeContext.languageName.trim()
+          ? localeContext.languageName.trim()
+          : chatLangDefault[language] || chatLangDefault.hi;
+      const assistantTitle =
+        typeof localeContext?.assistantTitle === 'string' && localeContext.assistantTitle.trim()
+          ? localeContext.assistantTitle.trim()
+          : 'MandiMitra AI Assistant';
+
       const { history: normalizedHistory, latestUserMessage } = normalizeChatForGemini(
         messages,
         12
@@ -441,13 +451,14 @@ Estimate realistic mandi gate quality metrics:
       const validLat = typeof latLng?.latitude === 'number' ? latLng.latitude : 26.8467;
       const validLng = typeof latLng?.longitude === 'number' ? latLng.longitude : 80.9462;
 
-      const systemInstruction = `You are MandiMitra AI Assistant, a friendly, super-simple help & agronomy chatbot embedded in the MandiMitra Uttar Pradesh farmer market intelligence app.
+      const systemInstruction = `You are ${assistantTitle}, a friendly, super-simple help & agronomy chatbot embedded in the MandiMitra Uttar Pradesh farmer market intelligence app.
 You help farmers with:
 1. Explaining their Net Profit Calculator results, crop quality adjustments, and why one mandi beats another.
 2. Live up-to-date UP market news, weather alerts, and UP Government MSP / e-Kharid scheme rules (using Google Search grounding when available).
 3. Real nearby mandis, cold storages, Krishi Vigyan Kendras, weighbridges, and driving directions (using Google Maps grounding when available).
 
-Language guidance: Match the language the user writes in (Hindi, Awadhi, Bhojpuri, Hinglish, or English). Default to ${chatLangDefault[language] || chatLangDefault.hi} if ambiguous.
+Active UI Locale: ${localeName} (code: ${language}).
+Language guidance: Respond primarily in ${chatLangDefault[language] || localeName} to match the farmer's active app language, unless the user explicitly writes in a different language (Hindi, Awadhi, Bhojpuri, Hinglish, or English).
 Keep answers very simple, friendly, and concise (3-6 short lines or numbered steps), grounded in the user's live farm state below:
 ${JSON.stringify(context ?? {}, null, 2)}`;
 
@@ -482,6 +493,7 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
         sources,
       });
     } catch (err) {
+      console.error('[MandiMitra /api/chat] Final error:', err);
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
     }
