@@ -10,7 +10,7 @@ import {
   TrendingUp,
   X,
 } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   CROPS,
   UP_MANDIS,
@@ -91,13 +91,21 @@ export function PriceAlertsPanel({
     setThresholdInput(Math.round((current + 50) / 10) * 10);
   }, [isOpen, selectedCropId]);
 
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    closeBtnRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      previousFocusRef.current?.focus();
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -142,6 +150,9 @@ export function PriceAlertsPanel({
       aria-modal="true"
       aria-labelledby="price-alerts-title"
       data-testid="price-alerts-modal"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl max-h-[min(90dvh,780px)] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
@@ -160,11 +171,12 @@ export function PriceAlertsPanel({
             </div>
           </div>
           <button
+            ref={closeBtnRef}
             type="button"
             onClick={onClose}
-            aria-label="Close price alerts"
+            aria-label={t.alerts.dismissToast}
             data-testid="close-price-alerts-btn"
-            className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10"
+            className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
           >
             <X className="w-5 h-5" />
           </button>
@@ -262,29 +274,31 @@ export function PriceAlertsPanel({
                     type="button"
                     data-testid="alert-dir-above"
                     aria-pressed={direction === 'above'}
+                    title={t.alerts.aboveLabel}
                     onClick={() => setDirection('above')}
-                    className={`h-11 px-2 rounded-xl text-xs font-bold border transition-colors inline-flex items-center justify-center gap-1 ${
+                    className={`h-11 px-2 rounded-xl text-xs font-bold border transition-colors inline-flex items-center justify-center gap-1 whitespace-nowrap ${
                       direction === 'above'
                         ? 'bg-emerald-800 text-white border-emerald-800'
                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{t.alerts.aboveLabel}</span>
+                    <span>{isHindiFamily ? 'ऊपर (≥)' : 'Above (≥)'}</span>
                   </button>
                   <button
                     type="button"
                     data-testid="alert-dir-below"
                     aria-pressed={direction === 'below'}
+                    title={t.alerts.belowLabel}
                     onClick={() => setDirection('below')}
-                    className={`h-11 px-2 rounded-xl text-xs font-bold border transition-colors inline-flex items-center justify-center gap-1 ${
+                    className={`h-11 px-2 rounded-xl text-xs font-bold border transition-colors inline-flex items-center justify-center gap-1 whitespace-nowrap ${
                       direction === 'below'
                         ? 'bg-amber-700 text-white border-amber-700'
                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <TrendingDown className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{t.alerts.belowLabel}</span>
+                    <span>{isHindiFamily ? 'नीचे (≤)' : 'Below (≤)'}</span>
                   </button>
                 </div>
               </div>

@@ -121,7 +121,7 @@ export function buildGeminiAttemptPlan(
  * Authentication / missing-key errors are never retried.
  */
 export function isRetryableGeminiError(err: unknown): boolean {
-  const raw = err instanceof Error ? err.message : String(err);
+  const raw = err instanceof Error ? `${err.name} ${err.message}` : String(err);
   if (
     raw.includes('GEMINI_API_KEY') ||
     raw.includes('API_KEY_INVALID') ||
@@ -135,6 +135,7 @@ export function isRetryableGeminiError(err: unknown): boolean {
     raw.includes('429') ||
     raw.includes('RESOURCE_EXHAUSTED') ||
     raw.includes('503') ||
+    raw.includes('504') ||
     raw.includes('UNAVAILABLE') ||
     raw.includes('500') ||
     raw.includes('INTERNAL') ||
@@ -142,6 +143,28 @@ export function isRetryableGeminiError(err: unknown): boolean {
     raw.includes('INVALID_ARGUMENT') ||
     raw.includes('NOT_FOUND') ||
     raw.includes('404') ||
-    raw.includes('EMPTY_RESPONSE')
+    raw.includes('EMPTY_RESPONSE') ||
+    raw.includes('TIMEOUT') ||
+    raw.includes('DEADLINE_EXCEEDED') ||
+    raw.includes('ETIMEDOUT') ||
+    raw.includes('AbortError') ||
+    raw.includes('aborted') ||
+    raw.includes('fetch failed')
+  );
+}
+
+/**
+ * Returns true when an attempt failure indicates quota exhaustion, stalling, or
+ * an unsupported model/tool combination that should be placed in temporary cooldown.
+ */
+export function shouldCooldownAttempt(err: unknown): boolean {
+  const raw = err instanceof Error ? `${err.name} ${err.message}` : String(err);
+  return (
+    raw.includes('429') ||
+    raw.includes('RESOURCE_EXHAUSTED') ||
+    raw.includes('TIMEOUT') ||
+    raw.includes('DEADLINE_EXCEEDED') ||
+    raw.includes('404') ||
+    raw.includes('NOT_FOUND')
   );
 }

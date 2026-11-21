@@ -4,9 +4,10 @@ import {
   calculateGradeAdjustment,
   calculatePoolSavings,
   computeSellVsStoreAdvisory,
+  formatINR,
   rankMandisByNetProfit,
 } from './mandiEngine';
-import { CROPS, INITIAL_TRANSPORT_POOLS } from '../data/upMandis';
+import { CROPS, INITIAL_TRANSPORT_POOLS, UP_DISTRICTS, type CropId } from '../data/upMandis';
 
 test('high moisture and high damage reduce Grade-Adjusted Fair Price below modal price', () => {
   const modal = 1600;
@@ -141,4 +142,59 @@ test('calculatePoolSavings computes meaningful cost reduction vs solo transport'
   assert.ok(result.pooledShareCostRs < 2100);
   assert.ok(result.savingsRs > 0);
   assert.equal(result.remainingCapacityQtl, 22);
+});
+
+test('rankMandisByNetProfit syncs live priceOffsetsByMandi directly into profit rankings', () => {
+  const base = rankMandisByNetProfit({
+    cropId: 'aloo',
+    originDistrict: 'barabanki',
+    quantityQtl: 20,
+    vehicleId: 'bolero_pickup',
+    quality: CROPS.aloo.defaultQuality,
+  });
+  const surged = rankMandisByNetProfit({
+    cropId: 'aloo',
+    originDistrict: 'barabanki',
+    quantityQtl: 20,
+    vehicleId: 'bolero_pickup',
+    quality: CROPS.aloo.defaultQuality,
+    priceOffsetsByMandi: { lucknow_dubagga: 300 },
+  });
+
+  const baseDubagga = base.find((r) => r.mandi.id === 'lucknow_dubagga')!;
+  const surgedDubagga = surged.find((r) => r.mandi.id === 'lucknow_dubagga')!;
+  assert.ok(surgedDubagga.baseModalPrice === baseDubagga.baseModalPrice + 300);
+  assert.ok(surgedDubagga.netProfitRs > baseDubagga.netProfitRs + 4500);
+});
+
+test('calculateGradeAdjustment and rankMandisByNetProfit enforce safe bounds across all crops & districts', () => {
+  const extremePoor = calculateGradeAdjustment('gehu', 2400, {
+    moisturePercent: 60,
+    damagePercent: 50,
+    foreignMatterPercent: 40,
+    sizeGrade: 'small',
+    gradeTier: 'commercial',
+    varietyNote: 'Extreme test',
+  });
+  assert.equal(extremePoor.totalAdjustmentPct, -35, 'Total discount must be capped at -35%');
+  assert.ok(extremePoor.adjustedPricePerQtl >= 100);
+  assert.ok(extremePoor.qualityScore >= 25 && extremePoor.qualityScore <= 100);
+
+  const cropIds: CropId[] = ['aloo', 'gehu', 'dhaan', 'pyaz', 'sarson'];
+  for (const cropId of cropIds) {
+    for (const d of UP_DISTRICTS) {
+      const ranked = rankMandisByNetProfit({
+        cropId,
+        originDistrict: d.id,
+        quantityQtl: 0, // zero guard -> clamped to 1
+        vehicleId: 'bolero_pickup',
+        quality: CROPS[cropId].defaultQuality,
+      });
+      assert.ok(ranked.length >= 6);
+      assert.ok(Number.isFinite(ranked[0].netProfitRs));
+    }
+  }
+
+  assert.equal(formatINR(125000), '₹1,25,000');
+  assert.equal(formatINR(-450), '-₹450');
 });

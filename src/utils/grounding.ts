@@ -1,3 +1,5 @@
+import { isSafeHttpUrl } from './apiValidation';
+
 export type GroundingMode = 'auto' | 'search' | 'maps';
 
 export interface GroundingSource {
@@ -91,7 +93,8 @@ interface RawGroundingChunk {
 }
 
 /**
- * Extracts deduplicated web and Google Maps source links from Gemini groundingChunks.
+ * Extracts deduplicated, URL-sanitized web and Google Maps source links from Gemini groundingChunks.
+ * Rejects any non-HTTP(S) URI (such as javascript: or data:) before returning links to the client.
  */
 export function extractGroundingSources(chunks: unknown): GroundingSource[] {
   if (!Array.isArray(chunks)) return [];
@@ -99,23 +102,23 @@ export function extractGroundingSources(chunks: unknown): GroundingSource[] {
   const sources: GroundingSource[] = [];
 
   for (const raw of chunks as RawGroundingChunk[]) {
-    if (raw?.web?.uri && !seen.has(raw.web.uri)) {
+    if (isSafeHttpUrl(raw?.web?.uri) && !seen.has(raw.web.uri)) {
       seen.add(raw.web.uri);
       sources.push({
         type: 'web',
         title: raw.web.title?.trim() || raw.web.uri,
-        uri: raw.web.uri,
+        uri: raw.web.uri.trim(),
       });
     }
 
-    if (raw?.maps?.uri && !seen.has(raw.maps.uri)) {
+    if (isSafeHttpUrl(raw?.maps?.uri) && !seen.has(raw.maps.uri)) {
       seen.add(raw.maps.uri);
       const firstSnippet =
         raw.maps.placeAnswerSources?.reviewSnippets?.[0]?.content?.trim() || undefined;
       sources.push({
         type: 'maps',
         title: raw.maps.title?.trim() || 'View on Google Maps',
-        uri: raw.maps.uri,
+        uri: raw.maps.uri.trim(),
         snippet: firstSnippet,
       });
     }
@@ -123,12 +126,12 @@ export function extractGroundingSources(chunks: unknown): GroundingSource[] {
     const reviewSnippets = raw?.maps?.placeAnswerSources?.reviewSnippets;
     if (Array.isArray(reviewSnippets)) {
       for (const review of reviewSnippets) {
-        if (review?.googleMapsUri && !seen.has(review.googleMapsUri)) {
+        if (isSafeHttpUrl(review?.googleMapsUri) && !seen.has(review.googleMapsUri)) {
           seen.add(review.googleMapsUri);
           sources.push({
             type: 'maps',
             title: raw?.maps?.title ? `${raw.maps.title} (Review)` : 'Google Maps Review',
-            uri: review.googleMapsUri,
+            uri: review.googleMapsUri.trim(),
             snippet: review.content?.trim() || undefined,
           });
         }

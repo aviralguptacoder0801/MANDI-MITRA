@@ -1,4 +1,6 @@
 import {
+  Check,
+  Copy,
   ExternalLink,
   Globe,
   Loader2,
@@ -10,7 +12,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   CROPS,
   UP_DISTRICTS,
@@ -115,10 +117,24 @@ export function VoiceWhatsAppWorkspace({
   const [transcribing, setTranscribing] = useState(false);
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
+  const [copiedSlip, setCopiedSlip] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Release audio playback and microphone stream cleanly on unmount
+  useEffect(() => {
+    return () => {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   const crop = CROPS[cropId];
   const district = UP_DISTRICTS.find((d) => d.id === originDistrict) ?? UP_DISTRICTS[0];
@@ -440,6 +456,36 @@ export function VoiceWhatsAppWorkspace({
                 </dd>
               </div>
             </dl>
+            <button
+              type="button"
+              data-testid="copy-whatsapp-advisory-btn"
+              onClick={async () => {
+                const isHi = language !== 'en';
+                const slip = isHi
+                  ? `मंडीमित्र सलाह (${crop.nameHi}, ${quantityQtl} क्विंटल, ${district.labelHi})\n• सबसे अच्छी मंडी: ${topMandi.mandi.nameHi} (${formatINR(topMandi.gradeAdjustedPricePerQtl)}/क्विंटल)\n• खर्च काटकर शुद्ध कमाई: ${formatINR(topMandi.netProfitRs)}\n• 15-दिन सलाह: ${advisory.verdict === 'STORE_AND_HOLD' ? `${advisory.optimalDay} दिन रुकें (+${formatINR(advisory.optimalDayGainRs)})` : 'आज बेचना बेहतर'}\n• सरकारी MSP: ${crop.msp.ratePerQtl > 0 ? `${formatINR(crop.msp.ratePerQtl)}/क्विंटल (${crop.msp.schemeName})` : crop.msp.schemeName}`
+                  : `MandiMitra Advisory (${crop.nameEn}, ${quantityQtl} Qtl, ${district.label})\n• Best Mandi: ${topMandi.mandi.name} (${formatINR(topMandi.gradeAdjustedPricePerQtl)}/qtl)\n• Take-Home Net Profit: ${formatINR(topMandi.netProfitRs)}\n• 15-Day Verdict: ${advisory.headline}\n• UP MSP Scheme: ${crop.msp.ratePerQtl > 0 ? `${formatINR(crop.msp.ratePerQtl)}/qtl (${crop.msp.schemeName})` : crop.msp.schemeName}`;
+                try {
+                  await navigator.clipboard.writeText(slip);
+                  setCopiedSlip(true);
+                  window.setTimeout(() => setCopiedSlip(false), 2500);
+                } catch {
+                  // Ignore clipboard restrictions
+                }
+              }}
+              className="w-full min-h-[40px] mt-2 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-950 text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-colors"
+            >
+              {copiedSlip ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                  <span>{t.profit.copiedSlip}</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                  <span>{t.profit.copySlip}</span>
+                </>
+              )}
+            </button>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
@@ -487,6 +533,9 @@ export function VoiceWhatsAppWorkspace({
 
           {/* Chat Canvas */}
           <div
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
             data-testid="whatsapp-thread"
             className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[420px] bg-slate-50/70"
           >

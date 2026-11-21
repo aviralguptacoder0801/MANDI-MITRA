@@ -1,5 +1,5 @@
 import { ArrowLeft, BellRing, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CommunityForumWorkspace } from './components/CommunityForumWorkspace';
 import { CongestionPoolWorkspace } from './components/CongestionPoolWorkspace';
 import { DashboardHome } from './components/DashboardHome';
@@ -16,7 +16,6 @@ import {
   INITIAL_FORUM_POSTS,
   INITIAL_TRANSPORT_POOLS,
   UP_DISTRICTS,
-  UP_MANDIS,
   type CropId,
   type CropQualityInput,
   type DistrictId,
@@ -25,6 +24,7 @@ import {
   type TransportPool,
   type VehicleTypeId,
 } from './data/upMandis';
+import { usePriceAlerts } from './hooks/usePriceAlerts';
 import {
   findNearestDistrict,
   getDefaultLanguageForDistrict,
@@ -36,21 +36,14 @@ import {
 } from './utils/mandiEngine';
 import { applyModerationAction, type ModerationAction } from './utils/moderation';
 import {
-  evaluatePriceAlerts,
-  formatPriceAlertCopy,
-  getEffectiveMandiPrices,
-  type PriceAlertNotification,
-  type PriceAlertRule,
-} from './utils/priceAlerts';
+  hydrateLocalizedForumPosts,
+  safeLoadJson,
+  safeSaveJson,
+} from './utils/storage';
 
 const STORAGE_POOLS_KEY = 'mandimitra_pools_v1';
 const STORAGE_FORUM_KEY = 'mandimitra_forum_v1';
 const STORAGE_PREFS_KEY = 'mandimitra_region_prefs_v1';
-const STORAGE_ALERT_RULES_KEY = 'mandimitra_price_alerts_v1';
-const STORAGE_ALERT_HISTORY_KEY = 'mandimitra_alert_history_v1';
-const STORAGE_ALERT_SEEN_KEY = 'mandimitra_alert_seen_v1';
-
-const ALL_CROP_IDS: CropId[] = ['aloo', 'gehu', 'dhaan', 'pyaz', 'sarson'];
 
 interface RegionPrefs {
   district: DistrictId;
@@ -58,84 +51,11 @@ interface RegionPrefs {
   autoRegion: boolean;
 }
 
-function loadStored<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * Hydrates newly added Hindi localization fields onto seeded INITIAL_FORUM_POSTS
- * even if a returning browser session already cached older post JSON in localStorage.
- */
-function hydrateLocalizedForumPosts(stored: ForumPost[]): ForumPost[] {
-  const seedById = new Map(INITIAL_FORUM_POSTS.map((p) => [p.id, p]));
-  return stored.map((post) => {
-    const seed = seedById.get(post.id);
-    if (!seed) return post;
-    const seedCommentById = new Map(seed.comments.map((c) => [c.id, c]));
-    return {
-      ...post,
-      titleHi: post.titleHi ?? seed.titleHi,
-      bodyHi: post.bodyHi ?? seed.bodyHi,
-      authorNameHi: post.authorNameHi ?? seed.authorNameHi,
-      districtHi: post.districtHi ?? seed.districtHi,
-      createdAtHi: post.createdAtHi ?? seed.createdAtHi,
-      autoFlagReasonHi: post.autoFlagReasonHi ?? seed.autoFlagReasonHi,
-      comments: post.comments.map((c) => {
-        const sc = seedCommentById.get(c.id);
-        if (!sc) return c;
-        return {
-          ...c,
-          authorNameHi: c.authorNameHi ?? sc.authorNameHi,
-          districtHi: c.districtHi ?? sc.districtHi,
-          createdAtHi: c.createdAtHi ?? sc.createdAtHi,
-          bodyHi: c.bodyHi ?? sc.bodyHi,
-        };
-      }),
-    };
-  });
-}
-
-function getInitialNotificationPermission(): NotificationPermission | 'unsupported' {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return 'unsupported';
-  }
-  return window.Notification.permission;
-}
-
-function playGentleAlertChime() {
-  try {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(784, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.14);
-    gain.gain.setValueAtTime(0.06, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
-  } catch {
-    // Ignore autoplay/Web Audio restrictions
-  }
-}
-
 export default function App() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('home');
 
   // Location & Regional Language preferences (default: Barabanki -> Hindi)
-  const initialPrefs = loadStored<RegionPrefs>(STORAGE_PREFS_KEY, {
+  const initialPrefs = safeLoadJson<RegionPrefs>(STORAGE_PREFS_KEY, {
     district: 'barabanki',
     language: 'hi',
     autoRegion: true,
@@ -173,88 +93,44 @@ export default function App() {
 
   // Persisted Transport Pools & Community Forum
   const [pools, setPools] = useState<TransportPool[]>(() =>
-    loadStored(STORAGE_POOLS_KEY, INITIAL_TRANSPORT_POOLS)
+    safeLoadJson(STORAGE_POOLS_KEY, INITIAL_TRANSPORT_POOLS)
   );
   const [forumPosts, setForumPosts] = useState<ForumPost[]>(() =>
-    hydrateLocalizedForumPosts(loadStored(STORAGE_FORUM_KEY, INITIAL_FORUM_POSTS))
+    hydrateLocalizedForumPosts(
+      safeLoadJson(STORAGE_FORUM_KEY, INITIAL_FORUM_POSTS),
+      INITIAL_FORUM_POSTS
+    )
   );
 
-  // Local Price Notification System state
-  const [alertRules, setAlertRules] = useState<PriceAlertRule[]>(() =>
-    loadStored(STORAGE_ALERT_RULES_KEY, [])
-  );
-  const [alertHistory, setAlertHistory] = useState<PriceAlertNotification[]>(() =>
-    loadStored(STORAGE_ALERT_HISTORY_KEY, [])
-  );
-  const [alertSeenKeys, setAlertSeenKeys] = useState<string[]>(() =>
-    loadStored(STORAGE_ALERT_SEEN_KEY, [])
-  );
-  const [priceOffsetsByCrop, setPriceOffsetsByCrop] = useState<
-    Partial<Record<CropId, Record<string, number>>>
-  >({});
-  const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
-  const [activeToastNotif, setActiveToastNotif] = useState<PriceAlertNotification | null>(null);
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>(
-    getInitialNotificationPermission
-  );
-  const toastTimerRef = useRef<number | null>(null);
-
+  // Decoupled Local Price Notification System hook
+  const alerts = usePriceAlerts(language);
   const t = TRANSLATIONS[language];
 
+  // Sync HTML document lang attribute for screen reader pronunciation
   useEffect(() => {
-    try {
-      localStorage.setItem(
-        STORAGE_PREFS_KEY,
-        JSON.stringify({
-          district: originDistrict,
-          language,
-          autoRegion: autoRegionLanguage,
-        })
-      );
-    } catch {
-      // Ignore storage quota errors
-    }
+    document.documentElement.lang = language === 'en' ? 'en' : 'hi';
+  }, [language]);
+
+  // Reset scroll position to top whenever switching workspace views
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [activeTab]);
+
+  useEffect(() => {
+    safeSaveJson(STORAGE_PREFS_KEY, {
+      district: originDistrict,
+      language,
+      autoRegion: autoRegionLanguage,
+    });
   }, [originDistrict, language, autoRegionLanguage]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_POOLS_KEY, JSON.stringify(pools));
-    } catch {
-      // Ignore storage quota errors
-    }
+    safeSaveJson(STORAGE_POOLS_KEY, pools);
   }, [pools]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_FORUM_KEY, JSON.stringify(forumPosts));
-    } catch {
-      // Ignore storage quota errors
-    }
+    safeSaveJson(STORAGE_FORUM_KEY, forumPosts);
   }, [forumPosts]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_ALERT_RULES_KEY, JSON.stringify(alertRules));
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, [alertRules]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_ALERT_HISTORY_KEY, JSON.stringify(alertHistory));
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, [alertHistory]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_ALERT_SEEN_KEY, JSON.stringify(alertSeenKeys));
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, [alertSeenKeys]);
 
   // Listen for Google Maps Platform quota events globally at top-level App
   useEffect(() => {
@@ -280,158 +156,6 @@ export default function App() {
     };
   }, [mapsApiKey]);
 
-  const livePricesByCrop = useMemo(() => {
-    const map = {} as Record<CropId, Record<string, number>>;
-    for (const id of ALL_CROP_IDS) {
-      map[id] = getEffectiveMandiPrices(id, priceOffsetsByCrop[id] ?? {});
-    }
-    return map;
-  }, [priceOffsetsByCrop]);
-
-  const showToastNotification = useCallback((notif: PriceAlertNotification) => {
-    setActiveToastNotif(notif);
-    if (toastTimerRef.current !== null) {
-      window.clearTimeout(toastTimerRef.current);
-    }
-    toastTimerRef.current = window.setTimeout(() => {
-      setActiveToastNotif(null);
-      toastTimerRef.current = null;
-    }, 9000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current !== null) {
-        window.clearTimeout(toastTimerRef.current);
-      }
-    };
-  }, []);
-
-  const runAlertEvaluation = useCallback(
-    (
-      rulesToCheck: PriceAlertRule[],
-      pricesMap: Record<CropId, Record<string, number>>,
-      seenKeys: string[],
-      lang: LanguageCode
-    ) => {
-      const nowLabel = new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      const { triggered, updatedDedupeKeys } = evaluatePriceAlerts(
-        rulesToCheck,
-        pricesMap,
-        seenKeys,
-        nowLabel
-      );
-
-      if (triggered.length === 0) return;
-
-      setAlertSeenKeys(updatedDedupeKeys);
-      setAlertHistory((prev) => [...triggered, ...prev].slice(0, 40));
-      showToastNotification(triggered[0]);
-      playGentleAlertChime();
-
-      if (
-        typeof window !== 'undefined' &&
-        'Notification' in window &&
-        window.Notification.permission === 'granted'
-      ) {
-        for (const item of triggered.slice(0, 3)) {
-          const copy = formatPriceAlertCopy(item, lang);
-          try {
-            new window.Notification(copy.title, {
-              body: copy.body,
-              tag: item.dedupeKey,
-            });
-          } catch {
-            // Ignore browser Notification construction errors in restricted contexts
-          }
-        }
-      }
-    },
-    [showToastNotification]
-  );
-
-  // Periodic background rate check every 45s while rules exist
-  useEffect(() => {
-    if (alertRules.length === 0) return;
-    const intervalId = window.setInterval(() => {
-      runAlertEvaluation(alertRules, livePricesByCrop, alertSeenKeys, language);
-    }, 45000);
-    return () => window.clearInterval(intervalId);
-  }, [alertRules, livePricesByCrop, alertSeenKeys, language, runAlertEvaluation]);
-
-  const handleRequestBrowserPermission = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported');
-      return;
-    }
-    try {
-      const result = await window.Notification.requestPermission();
-      setNotifPermission(result);
-    } catch {
-      setNotifPermission(window.Notification.permission);
-    }
-  };
-
-  const handleAddAlertRule = (draft: Omit<PriceAlertRule, 'id' | 'createdAt'>) => {
-    const created: PriceAlertRule = {
-      ...draft,
-      id: `rule-${Date.now()}`,
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    const nextRules = [created, ...alertRules];
-    setAlertRules(nextRules);
-    runAlertEvaluation(nextRules, livePricesByCrop, alertSeenKeys, language);
-  };
-
-  const handleToggleAlertRule = (ruleId: string) => {
-    const nextRules = alertRules.map((r) =>
-      r.id === ruleId ? { ...r, enabled: !r.enabled } : r
-    );
-    setAlertRules(nextRules);
-    runAlertEvaluation(nextRules, livePricesByCrop, alertSeenKeys, language);
-  };
-
-  const handleDeleteAlertRule = (ruleId: string) => {
-    setAlertRules((prev) => prev.filter((r) => r.id !== ruleId));
-  };
-
-  const handleCheckRatesNow = () => {
-    // Allow re-evaluation against current rates cleanly
-    runAlertEvaluation(alertRules, livePricesByCrop, [], language);
-  };
-
-  const handleSimulatePriceSurge = (targetCropId: CropId, deltaRs: number) => {
-    const existingOffsets = priceOffsetsByCrop[targetCropId] ?? {};
-    const updatedCropOffsets: Record<string, number> = { ...existingOffsets };
-    for (const mandi of UP_MANDIS) {
-      updatedCropOffsets[mandi.id] = (updatedCropOffsets[mandi.id] ?? 0) + deltaRs;
-    }
-    const nextOffsetsByCrop = {
-      ...priceOffsetsByCrop,
-      [targetCropId]: updatedCropOffsets,
-    };
-    setPriceOffsetsByCrop(nextOffsetsByCrop);
-
-    const nextLivePrices: Record<CropId, Record<string, number>> = {
-      ...livePricesByCrop,
-      [targetCropId]: getEffectiveMandiPrices(targetCropId, updatedCropOffsets),
-    };
-    runAlertEvaluation(alertRules, nextLivePrices, alertSeenKeys, language);
-  };
-
-  const handleMarkAllAlertsRead = () => {
-    setAlertHistory((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const handleClearAlertHistory = () => {
-    setAlertHistory([]);
-    setAlertSeenKeys([]);
-  };
-
-  // Changing Home District automatically updates the region language when autoRegionLanguage is ON
   const handleSelectHomeDistrict = (nextDistrict: DistrictId) => {
     setOriginDistrict(nextDistrict);
     if (autoRegionLanguage) {
@@ -446,7 +170,6 @@ export default function App() {
     }
   };
 
-  // Manual language button selection disables auto-override so user's explicit choice sticks
   const handleSelectLanguage = (nextLang: LanguageCode) => {
     setLanguage(nextLang);
     setAutoRegionLanguage(false);
@@ -461,7 +184,6 @@ export default function App() {
     }
   };
 
-  // Current GPS location -> nearest UP district & regional language
   const handleDetectGps = () => {
     setLocationNotice(null);
     if (!navigator.geolocation) {
@@ -519,22 +241,15 @@ export default function App() {
         vehicleId,
         quality: currentQuality,
         pools,
+        priceOffsetsByMandi: alerts.priceOffsetsByCrop[cropId],
       }),
-    [cropId, originDistrict, quantityQtl, vehicleId, currentQuality, pools]
+    [cropId, originDistrict, quantityQtl, vehicleId, currentQuality, pools, alerts.priceOffsetsByCrop]
   );
 
   const topMandi = rankedMandis[0];
   const preferredDefaultMandiIds = useMemo(
     () => rankedMandis.slice(0, 2).map((r) => r.mandi.id),
     [rankedMandis]
-  );
-  const unreadAlertCount = useMemo(
-    () => alertHistory.filter((n) => !n.read).length,
-    [alertHistory]
-  );
-  const activeAlertCount = useMemo(
-    () => alertRules.filter((r) => r.enabled).length,
-    [alertRules]
   );
 
   const sellVsStoreAdvisory = useMemo(
@@ -650,12 +365,16 @@ export default function App() {
     setForumPosts((prev) => applyModerationAction(prev, action));
   };
 
-  const activeToastCopy = activeToastNotif
-    ? formatPriceAlertCopy(activeToastNotif, language)
-    : null;
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+      {/* Keyboard accessibility: Skip directly to main workspace */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-slate-950 focus:text-white focus:text-sm focus:font-bold focus:outline-2 focus:outline-amber-400"
+      >
+        {language === 'en' ? 'Skip to main content' : 'मुख्य सामग्री पर जाएं'}
+      </a>
+
       {mapsQuotaExceeded && (
         <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
           <span>
@@ -676,8 +395,8 @@ export default function App() {
       <TopBar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        unreadAlertCount={unreadAlertCount}
-        onOpenAlerts={() => setAlertsPanelOpen(true)}
+        unreadAlertCount={alerts.unreadAlertCount}
+        onOpenAlerts={() => alerts.setAlertsPanelOpen(true)}
         t={t}
       />
 
@@ -698,25 +417,25 @@ export default function App() {
       />
 
       {/* High-Contrast In-App Local Price Alert Toast */}
-      {activeToastNotif && activeToastCopy && (
+      {alerts.activeToastNotif && alerts.activeToastCopy && (
         <div
           role="status"
           aria-live="polite"
           data-testid="price-alert-toast"
-          className="fixed top-16 right-4 z-50 w-[calc(100vw-2rem)] sm:w-[390px] bg-slate-950 text-white border-2 border-amber-400 rounded-2xl p-4 shadow-2xl flex items-start gap-3"
+          className="fixed top-16 right-4 z-[60] w-[calc(100vw-2rem)] sm:w-[390px] bg-slate-950 text-white border-2 border-amber-400 rounded-2xl p-4 shadow-2xl flex items-start gap-3"
         >
           <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0">
             <BellRing className="w-5 h-5" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0 space-y-1">
             <p className="text-xs font-bold text-amber-300">{t.alerts.modalTitle}</p>
-            <p className="text-sm font-bold text-white leading-snug">{activeToastCopy.title}</p>
-            <p className="text-xs text-slate-200 leading-relaxed">{activeToastCopy.body}</p>
+            <p className="text-sm font-bold text-white leading-snug">{alerts.activeToastCopy.title}</p>
+            <p className="text-xs text-slate-200 leading-relaxed">{alerts.activeToastCopy.body}</p>
             <button
               type="button"
               onClick={() => {
-                setAlertsPanelOpen(true);
-                setActiveToastNotif(null);
+                alerts.setAlertsPanelOpen(true);
+                alerts.dismissToast();
               }}
               className="mt-1 text-xs font-bold text-amber-300 underline hover:text-amber-200"
             >
@@ -725,7 +444,7 @@ export default function App() {
           </div>
           <button
             type="button"
-            onClick={() => setActiveToastNotif(null)}
+            onClick={alerts.dismissToast}
             aria-label={t.alerts.dismissToast}
             className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 shrink-0"
           >
@@ -734,7 +453,11 @@ export default function App() {
         </div>
       )}
 
-      <main className="flex-1 max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 focus:outline-none"
+      >
         {activeTab !== 'home' && (
           <div className="mb-5 flex items-center justify-between gap-3">
             <button
@@ -759,9 +482,9 @@ export default function App() {
             advisory={sellVsStoreAdvisory}
             activePoolCount={pools.length}
             communityPostCount={forumPosts.filter((p) => !p.hidden).length}
-            activeAlertCount={activeAlertCount}
-            unreadAlertCount={unreadAlertCount}
-            onOpenAlerts={() => setAlertsPanelOpen(true)}
+            activeAlertCount={alerts.activeAlertCount}
+            unreadAlertCount={alerts.unreadAlertCount}
+            onOpenAlerts={() => alerts.setAlertsPanelOpen(true)}
             language={language}
             t={t}
             onSelectTab={setActiveTab}
@@ -874,22 +597,22 @@ export default function App() {
       </footer>
 
       <PriceAlertsPanel
-        isOpen={alertsPanelOpen}
-        onClose={() => setAlertsPanelOpen(false)}
+        isOpen={alerts.alertsPanelOpen}
+        onClose={() => alerts.setAlertsPanelOpen(false)}
         selectedCropId={cropId}
         preferredDefaultMandiIds={preferredDefaultMandiIds}
-        livePricesByCrop={livePricesByCrop}
-        rules={alertRules}
-        notifications={alertHistory}
-        notificationPermission={notifPermission}
-        onRequestBrowserPermission={handleRequestBrowserPermission}
-        onAddRule={handleAddAlertRule}
-        onToggleRule={handleToggleAlertRule}
-        onDeleteRule={handleDeleteAlertRule}
-        onCheckRatesNow={handleCheckRatesNow}
-        onSimulatePriceSurge={handleSimulatePriceSurge}
-        onMarkAllRead={handleMarkAllAlertsRead}
-        onClearHistory={handleClearAlertHistory}
+        livePricesByCrop={alerts.livePricesByCrop}
+        rules={alerts.alertRules}
+        notifications={alerts.alertHistory}
+        notificationPermission={alerts.notifPermission}
+        onRequestBrowserPermission={alerts.requestBrowserPermission}
+        onAddRule={alerts.addAlertRule}
+        onToggleRule={alerts.toggleAlertRule}
+        onDeleteRule={alerts.deleteAlertRule}
+        onCheckRatesNow={alerts.checkRatesNow}
+        onSimulatePriceSurge={alerts.simulatePriceSurge}
+        onMarkAllRead={alerts.markAllRead}
+        onClearHistory={alerts.clearHistory}
         language={language}
         t={t}
       />

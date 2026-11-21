@@ -1,9 +1,18 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
+import {
+  createRateLimiter,
+  validateAdvisoryPayload,
+  validateChatPayload,
+  validateGradePhotoPayload,
+  validateLiveIntelPayload,
+  validateTranscribePayload,
+  validateTtsPayload,
+} from './src/utils/apiValidation.ts';
 import {
   buildGeminiAttemptPlan,
   isRetryableGeminiError,
@@ -71,6 +80,26 @@ function isQuotaError(err: unknown): boolean {
   return raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED');
 }
 
+const PER_ATTEMPT_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`503 UPSTREAM_TIMEOUT: ${label} exceeded ${ms}ms`));
+    }, ms);
+    promise.then(
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 async function runGeminiAttemptPlan<T>(
   preferredTool: GroundingToolChoice,
   executor: (attempt: GeminiAttempt) => Promise<T>
@@ -88,7 +117,11 @@ async function runGeminiAttemptPlan<T>(
   for (let i = 0; i < orderedPlan.length; i++) {
     const attempt = orderedPlan[i];
     try {
-      const result = await executor(attempt);
+      const result = await withTimeout(
+        executor(attempt),
+        PER_ATTEMPT_TIMEOUT_MS,
+        `${attempt.model}:${attempt.tool}`
+      );
       quotaCooldownUntil.delete(attemptKey(attempt));
       return { result, attempt };
     } catch (err) {
@@ -134,13 +167,46 @@ function getErrorStatus(err: unknown): { status: number; message: string } {
   }
   return {
     status: 500,
-    message: `AI request failed: ${raw.slice(0, 200)}`,
+    message: 'AI request could not be completed right now. Please try again shortly.',
   };
 }
 
-async function startServer() {
+export interface ApiAppOptions {
+  rateLimitMax?: number;
+  rateLimitWindowMs?: number;
+}
+
+export function createApiApp(options: ApiAppOptions = {}): Express {
   const app = express();
+  app.disable('x-powered-by');
   app.use(express.json({ limit: '12mb' }));
+
+  // Baseline security headers (intentionally omits X-Frame-Options for AI Studio iframe preview)
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self)');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    next();
+  });
+
+  const aiRateLimiter = createRateLimiter({
+    windowMs: options.rateLimitWindowMs ?? 60_000,
+    maxRequests: options.rateLimitMax ?? 45,
+  });
+
+  const enforceAiRateLimit = (req: Request, res: Response, next: NextFunction) => {
+    const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+    const check = aiRateLimiter.check(clientIp);
+    if (!check.allowed) {
+      res.setHeader('Retry-After', String(check.retryAfterSeconds));
+      res.status(429).json({
+        error: `Too many AI requests. Please wait ${check.retryAfterSeconds}s and try again.`,
+      });
+      return;
+    }
+    next();
+  };
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'mandimitra-api' });
@@ -157,20 +223,15 @@ async function startServer() {
   });
 
   // 1. Regional WhatsApp / Voice Mandi Advisory with Google Search & Google Maps Grounding
-  app.post('/api/advisory', async (req, res) => {
-    try {
-      const {
-        query,
-        language = 'hi',
-        context,
-        groundingMode = 'auto',
-        latLng,
-      } = req.body ?? {};
-      if (!query || typeof query !== 'string' || !query.trim()) {
-        res.status(400).json({ error: 'Please provide a farmer query.' });
-        return;
-      }
+  app.post('/api/advisory', enforceAiRateLimit, async (req, res) => {
+    const validation = validateAdvisoryPayload(req.body);
+    if (!validation.ok) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
 
+    try {
+      const { query, language, context, groundingMode, latLng } = validation.data;
       const ai = getGeminiClient();
       const langInstruction: Record<string, string> = {
         hi: 'Respond in warm, simple, clear Hindi (Devanagari script) that a Uttar Pradesh farmer easily understands. Keep numbers in standard digits (₹1,450).',
@@ -179,9 +240,7 @@ async function startServer() {
         en: 'Respond in clear, concise, practical English tailored for an Uttar Pradesh farmer.',
       };
 
-      const selectedTool = selectGroundingTool(query.trim(), groundingMode as GroundingMode);
-      const validLat = typeof latLng?.latitude === 'number' ? latLng.latitude : 26.8467;
-      const validLng = typeof latLng?.longitude === 'number' ? latLng.longitude : 80.9462;
+      const selectedTool = selectGroundingTool(query, groundingMode as GroundingMode);
 
       const systemInstruction = `You are MandiMitra (मंडीमित्र), a practical market price intelligence and mandi advisor for Uttar Pradesh farmers.
 ${langInstruction[language] || langInstruction.hi}
@@ -194,10 +253,10 @@ Rules:
   3. Any relevant congestion alert, nearby place/route detail, or latest scheme update.
 - Avoid markdown tables or heavy jargon so it reads cleanly and sounds natural on voice IVR.`;
 
-      const prompt = `Farmer question: "${query.trim()}"
+      const prompt = `Farmer question: "${query}"
 
 Live Mandi & Farm Context (JSON):
-${JSON.stringify(context ?? {}, null, 2)}`;
+${JSON.stringify(context, null, 2)}`;
 
       const { result: response, attempt } = await runGeminiAttemptPlan(
         selectedTool,
@@ -207,7 +266,7 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
             contents: prompt,
             config: {
               systemInstruction,
-              ...buildToolConfig(attemptItem, { latitude: validLat, longitude: validLng }),
+              ...buildToolConfig(attemptItem, latLng),
             },
           });
           if (!(r.text ?? '').trim()) {
@@ -230,20 +289,22 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
         sources,
       });
     } catch (err) {
+      console.error('[MandiMitra /api/advisory] Final error:', err);
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
     }
   });
 
   // 2. IVR Text-to-Speech (gemini-3.8-flash-lite-tts -> WAV base64)
-  app.post('/api/tts', async (req, res) => {
-    try {
-      const { text, language = 'hi' } = req.body ?? {};
-      if (!text || typeof text !== 'string' || !text.trim()) {
-        res.status(400).json({ error: 'Text is required for audio synthesis.' });
-        return;
-      }
+  app.post('/api/tts', enforceAiRateLimit, async (req, res) => {
+    const validation = validateTtsPayload(req.body);
+    if (!validation.ok) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
 
+    try {
+      const { text, language } = validation.data;
       const ai = getGeminiClient();
       const styleMap: Record<string, string> = {
         hi: 'Warm, clear, trustworthy Indian rural agricultural advisor speaking Hindi at a steady, easy-to-follow pace',
@@ -252,7 +313,6 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
         en: 'Clear, friendly Indian agricultural advisor speaking simple English at a steady pace',
       };
 
-      const trimmedText = text.trim().slice(0, 1200);
       const response = await ai.models.generateContent({
         model: 'gemini-3.8-flash-lite-tts',
         contents: [
@@ -260,7 +320,7 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
             role: 'user',
             parts: [
               {
-                text: trimmedText,
+                text,
                 speechMetadata: {
                   style: styleMap[language] || styleMap.hi,
                 },
@@ -288,20 +348,22 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
 
       res.json({ audioBase64: base64Audio, mimeType: 'audio/wav' });
     } catch (err) {
+      console.error('[MandiMitra /api/tts] Final error:', err);
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
     }
   });
 
   // 3. Audio Voice Note Transcription (gemini-3.5-transcribe)
-  app.post('/api/transcribe', async (req, res) => {
-    try {
-      const { audioBase64, mimeType = 'audio/webm', language = 'hi' } = req.body ?? {};
-      if (!audioBase64 || typeof audioBase64 !== 'string') {
-        res.status(400).json({ error: 'Audio data is required.' });
-        return;
-      }
+  app.post('/api/transcribe', enforceAiRateLimit, async (req, res) => {
+    const validation = validateTranscribePayload(req.body);
+    if (!validation.ok) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
 
+    try {
+      const { audioBase64, mimeType, language } = validation.data;
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
         model: 'gemini-3.5-transcribe',
@@ -323,20 +385,22 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
       const transcript = (response.text ?? '').trim();
       res.json({ transcript });
     } catch (err) {
+      console.error('[MandiMitra /api/transcribe] Final error:', err);
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
     }
   });
 
   // 4. Multimodal Crop Photo Quality Grading (gemini-4-hydrogen vision + structured JSON)
-  app.post('/api/grade-photo', async (req, res) => {
-    try {
-      const { imageBase64, mimeType = 'image/jpeg', cropName = 'Potato (Aloo)' } = req.body ?? {};
-      if (!imageBase64 || typeof imageBase64 !== 'string') {
-        res.status(400).json({ error: 'Crop image is required for quality inspection.' });
-        return;
-      }
+  app.post('/api/grade-photo', enforceAiRateLimit, async (req, res) => {
+    const validation = validateGradePhotoPayload(req.body);
+    if (!validation.ok) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
 
+    try {
+      const { imageBase64, mimeType, cropName } = validation.data;
       const ai = getGeminiClient();
       const { result: response } = await runGeminiAttemptPlan('none', async (attemptItem) => {
         const r = await ai.models.generateContent({
@@ -400,27 +464,22 @@ Estimate realistic mandi gate quality metrics:
       const parsed = JSON.parse(rawText);
       res.json(parsed);
     } catch (err) {
+      console.error('[MandiMitra /api/grade-photo] Final error:', err);
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
     }
   });
 
   // 5. Floating Multi-Turn Gemini Chatbot (Google Search & Google Maps Grounding via ai.chats)
-  app.post('/api/chat', async (req, res) => {
-    try {
-      const {
-        messages,
-        language = 'hi',
-        localeContext,
-        context,
-        groundingMode = 'auto',
-        latLng,
-      } = req.body ?? {};
-      if (!Array.isArray(messages) || messages.length === 0) {
-        res.status(400).json({ error: 'Chat messages are required.' });
-        return;
-      }
+  app.post('/api/chat', enforceAiRateLimit, async (req, res) => {
+    const validation = validateChatPayload(req.body);
+    if (!validation.ok) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
 
+    try {
+      const { messages, language, localeContext, context, groundingMode, latLng } = validation.data;
       const ai = getGeminiClient();
       const chatLangDefault: Record<string, string> = {
         hi: 'simple clear Hindi (Devanagari)',
@@ -429,14 +488,8 @@ Estimate realistic mandi gate quality metrics:
         en: 'clear simple English',
       };
 
-      const localeName =
-        typeof localeContext?.languageName === 'string' && localeContext.languageName.trim()
-          ? localeContext.languageName.trim()
-          : chatLangDefault[language] || chatLangDefault.hi;
-      const assistantTitle =
-        typeof localeContext?.assistantTitle === 'string' && localeContext.assistantTitle.trim()
-          ? localeContext.assistantTitle.trim()
-          : 'MandiMitra AI Assistant';
+      const localeName = localeContext.languageName || chatLangDefault[language] || chatLangDefault.hi;
+      const assistantTitle = localeContext.assistantTitle || 'MandiMitra AI Assistant';
 
       const { history: normalizedHistory, latestUserMessage } = normalizeChatForGemini(
         messages,
@@ -448,8 +501,6 @@ Estimate realistic mandi gate quality metrics:
       }
 
       const selectedTool = selectGroundingTool(latestUserMessage, groundingMode as GroundingMode);
-      const validLat = typeof latLng?.latitude === 'number' ? latLng.latitude : 26.8467;
-      const validLng = typeof latLng?.longitude === 'number' ? latLng.longitude : 80.9462;
 
       const systemInstruction = `You are ${assistantTitle}, a friendly, super-simple help & agronomy chatbot embedded in the MandiMitra Uttar Pradesh farmer market intelligence app.
 You help farmers with:
@@ -460,7 +511,7 @@ You help farmers with:
 Active UI Locale: ${localeName} (code: ${language}).
 Language guidance: Respond primarily in ${chatLangDefault[language] || localeName} to match the farmer's active app language, unless the user explicitly writes in a different language (Hindi, Awadhi, Bhojpuri, Hinglish, or English).
 Keep answers very simple, friendly, and concise (3-6 short lines or numbered steps), grounded in the user's live farm state below:
-${JSON.stringify(context ?? {}, null, 2)}`;
+${JSON.stringify(context, null, 2)}`;
 
       const { result: response, attempt } = await runGeminiAttemptPlan(
         selectedTool,
@@ -470,7 +521,7 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
             history: normalizedHistory,
             config: {
               systemInstruction,
-              ...buildToolConfig(attemptItem, { latitude: validLat, longitude: validLng }),
+              ...buildToolConfig(attemptItem, latLng),
             },
           });
           const r = await chat.sendMessage({ message: latestUserMessage });
@@ -500,16 +551,15 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
   });
 
   // 6. One-Tap Live Market News (Google Search) & Nearby Agri Places (Google Maps Grounding)
-  app.post('/api/live-intel', async (req, res) => {
-    try {
-      const {
-        mode = 'search',
-        cropName = 'Potato (Aloo)',
-        districtName = 'Barabanki',
-        language = 'hi',
-        latLng,
-      } = req.body ?? {};
+  app.post('/api/live-intel', enforceAiRateLimit, async (req, res) => {
+    const validation = validateLiveIntelPayload(req.body);
+    if (!validation.ok) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
 
+    try {
+      const { mode, cropName, districtName, language, latLng } = validation.data;
       const ai = getGeminiClient();
       const langLabel =
         language === 'en'
@@ -519,9 +569,6 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
             : language === 'awadhi'
               ? 'simple Awadhi (Devanagari)'
               : 'simple Hindi (Devanagari)';
-
-      const validLat = typeof latLng?.latitude === 'number' ? latLng.latitude : 26.8467;
-      const validLng = typeof latLng?.longitude === 'number' ? latLng.longitude : 80.9462;
 
       const useMaps = mode === 'maps';
       const prompt = useMaps
@@ -534,7 +581,7 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
           const r = await ai.models.generateContent({
             model: attemptItem.model,
             contents: prompt,
-            config: buildToolConfig(attemptItem, { latitude: validLat, longitude: validLng }),
+            config: buildToolConfig(attemptItem, latLng),
           });
           if (!(r.text ?? '').trim()) {
             throw new Error('EMPTY_RESPONSE');
@@ -555,10 +602,26 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
         sources,
       });
     } catch (err) {
+      console.error('[MandiMitra /api/live-intel] Final error:', err);
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
     }
   });
+
+  // Malformed JSON body error handler (prevents leaking Express stack traces)
+  app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (err && typeof err === 'object' && 'type' in err && (err as { type?: string }).type === 'entity.parse.failed') {
+      res.status(400).json({ error: 'Invalid JSON request payload.' });
+      return;
+    }
+    next(err);
+  });
+
+  return app;
+}
+
+async function startServer() {
+  const app = createApiApp();
 
   if (!IS_PROD) {
     const { createServer: createViteServer } = await import('vite');
@@ -585,7 +648,14 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+const isMainEntry =
+  typeof process !== 'undefined' &&
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === __filename;
+
+if (isMainEntry) {
+  startServer().catch((err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}

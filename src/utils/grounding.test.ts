@@ -49,3 +49,16 @@ test('extractGroundingSources extracts deduplicated web and maps links including
   assert.equal(sources[1].snippet, 'Large wholesale vegetable and potato market.');
   assert.equal(sources[2].uri, 'https://maps.google.com/?cid=12345&review=1');
 });
+
+test('extractGroundingSources strips unsafe javascript:, data:, and file: URIs', () => {
+  const chunks = [
+    { web: { uri: 'javascript:alert(1)', title: 'Bad JS' } },
+    { web: { uri: 'data:text/html;base64,PHNjcmlwdD4=', title: 'Bad Data' } },
+    { maps: { uri: 'file:///etc/passwd', title: 'Bad File' } },
+    { web: { uri: 'https://upagripardarshi.gov.in/', title: 'UP Agri Portal' } },
+  ];
+
+  const sources = extractGroundingSources(chunks);
+  assert.equal(sources.length, 1);
+  assert.equal(sources[0].uri, 'https://upagripardarshi.gov.in/');
+});

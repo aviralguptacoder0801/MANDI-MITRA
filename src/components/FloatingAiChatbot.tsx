@@ -35,6 +35,28 @@ interface ChatMsg {
   sources?: GroundingSource[];
 }
 
+function renderFormattedChatText(text: string) {
+  const lines = text.split('\n');
+  return lines.map((rawLine, lineIdx) => {
+    const cleanedLine = rawLine.replace(/^\s*[-*]\s+/, '• ');
+    const segments = cleanedLine.split(/(\*\*[^*]+\*\*)/g);
+    return (
+      <span key={lineIdx} className={lineIdx > 0 ? 'block mt-1' : 'block'}>
+        {segments.map((segment, segIdx) => {
+          if (segment.startsWith('**') && segment.endsWith('**') && segment.length > 4) {
+            return (
+              <strong key={segIdx} className="font-bold text-slate-950">
+                {segment.slice(2, -2)}
+              </strong>
+            );
+          }
+          return <span key={segIdx}>{segment}</span>;
+        })}
+      </span>
+    );
+  });
+}
+
 interface FloatingAiChatbotProps {
   cropId: CropId;
   originDistrict: DistrictId;
@@ -372,6 +394,9 @@ export function FloatingAiChatbot({
 
           {/* Scrollable Conversation Thread */}
           <div
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
             data-testid="chat-messages-list"
             className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3 bg-slate-50/70"
           >
@@ -388,7 +413,7 @@ export function FloatingAiChatbot({
                       : 'bg-white text-slate-900 border border-slate-200'
                   }`}
                 >
-                  {m.text}
+                  {m.role === 'assistant' ? renderFormattedChatText(m.text) : m.text}
 
                   {/* Grounded Google Search & Google Maps Sources */}
                   {m.role === 'assistant' && m.sources && m.sources.length > 0 && (
@@ -466,20 +491,22 @@ export function FloatingAiChatbot({
             <div ref={scrollEndRef} />
           </div>
 
-          {/* Quick Help Prompts */}
-          <div className="px-3.5 py-2 bg-white border-t border-slate-100 flex flex-wrap gap-1.5 shrink-0">
-            {quickPrompts.map((q) => (
-              <button
-                key={q}
-                type="button"
-                disabled={loading}
-                onClick={() => sendMessage(q)}
-                className="text-[11px] font-medium text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md px-2.5 py-1.5 transition-colors text-left disabled:opacity-60"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
+          {/* Quick Help Prompts (shown before first user question to keep replies roomy) */}
+          {messages.length <= 1 && (
+            <div className="px-3.5 py-2 bg-white border-t border-slate-100 flex flex-wrap gap-1.5 shrink-0">
+              {quickPrompts.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => sendMessage(q)}
+                  className="text-[11px] font-medium text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md px-2.5 py-1.5 transition-colors text-left disabled:opacity-60"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Composer */}
           <form

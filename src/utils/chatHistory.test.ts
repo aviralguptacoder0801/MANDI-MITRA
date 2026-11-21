@@ -4,6 +4,7 @@ import {
   buildGeminiAttemptPlan,
   isRetryableGeminiError,
   normalizeChatForGemini,
+  shouldCooldownAttempt,
 } from './chatHistory';
 
 test('normalizeChatForGemini strips initial assistant greeting and extracts latest user turn', () => {
@@ -63,10 +64,17 @@ test('buildGeminiAttemptPlan tries grounded primary and flash-lite models before
   ]);
 });
 
-test('isRetryableGeminiError retries quota/server/tool errors but does not retry auth errors', () => {
+test('isRetryableGeminiError retries quota/server/tool/timeout errors but does not retry auth errors', () => {
   assert.equal(isRetryableGeminiError(new Error('429 RESOURCE_EXHAUSTED')), true);
   assert.equal(isRetryableGeminiError(new Error('503 UNAVAILABLE')), true);
   assert.equal(isRetryableGeminiError(new Error('400 INVALID_ARGUMENT')), true);
+  assert.equal(isRetryableGeminiError(new Error('ATTEMPT_TIMEOUT after 5500ms')), true);
   assert.equal(isRetryableGeminiError(new Error('403 PERMISSION_DENIED')), false);
   assert.equal(isRetryableGeminiError(new Error('GEMINI_API_KEY is not configured')), false);
+});
+
+test('shouldCooldownAttempt flags 429 quota and timeout failures for cooldown', () => {
+  assert.equal(shouldCooldownAttempt(new Error('429 RESOURCE_EXHAUSTED')), true);
+  assert.equal(shouldCooldownAttempt(new Error('ATTEMPT_TIMEOUT after 5500ms')), true);
+  assert.equal(shouldCooldownAttempt(new Error('503 UNAVAILABLE')), false);
 });

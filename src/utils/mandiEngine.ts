@@ -310,13 +310,23 @@ export function rankMandisByNetProfit(params: {
   vehicleId: VehicleTypeId;
   quality: CropQualityInput;
   pools?: TransportPool[];
+  priceOffsetsByMandi?: Record<string, number>;
 }): RankedMandiProfit[] {
-  const { cropId, originDistrict, quantityQtl, vehicleId, quality, pools = [] } = params;
+  const {
+    cropId,
+    originDistrict,
+    quantityQtl,
+    vehicleId,
+    quality,
+    pools = [],
+    priceOffsetsByMandi = {},
+  } = params;
   const safeQty = Math.max(1, quantityQtl);
 
   const rows: RankedMandiProfit[] = UP_MANDIS.map((mandi) => {
     const distanceKm = DISTRICT_DISTANCE_KM[originDistrict]?.[mandi.district] ?? 90;
-    const baseModalPrice = mandi.modalPrices[cropId];
+    const rawOffset = priceOffsetsByMandi[mandi.id] ?? 0;
+    const baseModalPrice = Math.max(100, Math.round(mandi.modalPrices[cropId] + rawOffset));
     const congestionLoadPct = Math.round(
       (mandi.todayArrivalTonnes / mandi.dailyCapacityTonnes) * 100
     );
