@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mandi Mitr – Hackathon Presentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&family=Baloo+2:wght@700;800&display=swap');
+
+  :root {
+    --green:   #16a34a;
+    --lime:    #84cc16;
+    --yellow:  #facc15;
+    --orange:  #f97316;
+    --dark:    #0f1f0f;
+    --card:    #1a2e1a;
+    --light:   #f0fdf4;
+    --white:   #ffffff;
+    --accent:  #22c55e;
+    --muted:   #86efac;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--dark);
+    color: var(--white);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── slide engine ── */
+  .deck { width:100vw; height:100vh; position:relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 60px;
+    overflow: hidden;
+  }
+  .slide.active { display: flex; }
+
+  /* ── nav ── */
+  #nav {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 16px; z-index: 100;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    padding: 10px 24px; border-radius: 50px;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  #nav button {
+    background: var(--green); color: #fff; border: none;
+    padding: 8px 22px; border-radius: 50px; cursor: pointer;
+    font-size: 15px; font-family: 'Poppins', sans-serif;
+    font-weight: 600; transition: all .2s;
+  }
+  #nav button:hover { background: var(--accent); transform: scale(1.05); }
+  #nav button:disabled { opacity: .3; cursor: default; transform: none; }
+  #counter { font-size: 14px; color: var(--muted); min-width: 60px; text-align: center; }
+  .dots { display:flex; gap:6px; }
+  .dot {
+    width:8px; height:8px; border-radius:50%;
+    background: rgba(255,255,255,0.25); cursor:pointer; transition: all .2s;
+  }
+  .dot.active { background: var(--accent); width:20px; border-radius:4px; }
+
+  /* ── bg decorators ── */
+  .bg-blob {
+    position:absolute; border-radius:50%;
+    filter: blur(80px); opacity:.18; pointer-events:none; z-index:0;
+  }
+
+  /* ── common ── */
+  .content { position:relative; z-index:1; width:100%; max-width:1200px; }
+  h1 { font-family:'Baloo 2',sans-serif; }
+  .tag {
+    display:inline-block; background:var(--green); color:#fff;
+    padding:4px 14px; border-radius:50px; font-size:12px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; margin-bottom:12px;
+  }
+  .tag.orange { background:var(--orange); }
+  .tag.yellow { color:#000; background:var(--yellow); }
+  .tag.lime { color:#000; background:var(--lime); }
+
+  /* ── SLIDE 1 — COVER ── */
+  #s1 { background: linear-gradient(135deg, #0a1a0a 0%, #0d2a0d 50%, #071507 100%); }
+  #s1 .bg-blob:nth-child(1) { width:600px;height:600px;background:var(--green);top:-200px;right:-150px; }
+  #s1 .bg-blob:nth-child(2) { width:400px;height:400px;background:var(--lime);bottom:-150px;left:-100px; }
+  #s1 .logo-box {
+    display:flex;align-items:center;gap:20px;margin-bottom:24px;
+  }
+  #s1 .logo-emoji { font-size:72px; }
+  #s1 h1 {
+    font-size: clamp(52px,6vw,80px); font-weight:900;
+    background: linear-gradient(90deg,#4ade80,#facc15);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    line-height:1;
+  }
+  #s1 .hindi { font-size:28px; color:var(--muted); font-weight:300; margin-bottom:8px; }
+  #s1 .tagline {
+    font-size:clamp(16px,2vw,22px); color:var(--light); max-width:700px;
+    text-align:center; line-height:1.6; margin-bottom:36px;
+  }
+  #s1 .badges { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  #s1 .badge {
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+    padding:8px 20px; border-radius:50px; font-size:13px; color:var(--muted);
+  }
+  #s1 .repo-link {
+    margin-top:20px; font-size:13px; color:var(--accent); text-decoration:none;
+    border-bottom:1px dashed var(--accent);
+  }
+
+  /* ── SLIDE 2 — PROBLEM ── */
+  #s2 { background: linear-gradient(135deg, #1a0a00 0%, #2d1200 100%); }
+  #s2 .bg-blob:nth-child(1) { width:500px;height:500px;background:#f97316;top:-150px;right:-100px; }
+  .problem-grid {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:28px;
+  }
+  .prob-card {
+    background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3);
+    border-radius:16px; padding:24px; text-align:center;
+  }
+  .prob-card .icon { font-size:36px; margin-bottom:12px; }
+  .prob-card h3 { font-size:16px; color:var(--orange); margin-bottom:8px; }
+  .prob-card p { font-size:13px; color:#fdba74; line-height:1.5; }
+  .stat-row {
+    display:flex; gap:20px; justify-content:center; margin-top:24px;
+  }
+  .stat { text-align:center; }
+  .stat .num { font-size:36px; font-weight:800; color:var(--orange); }
+  .stat .lbl { font-size:12px; color:#fdba74; }
+
+  /* ── SLIDE 3 — SOLUTION ── */
+  #s3 { background: linear-gradient(135deg, #0a1a0a 0%, #0d2a1a 100%); }
+  #s3 .bg-blob:nth-child(1) { width:500px;height:500px;background:var(--green);top:-150px;left:-100px; }
+  .solution-layout { display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:center; margin-top:24px; }
+  .solution-left h2 { font-size:34px; font-weight:800; color:var(--accent); line-height:1.2; margin-bottom:16px; }
+  .solution-left p { font-size:15px; color:var(--muted); line-height:1.7; margin-bottom:20px; }
+  .sol-point { display:flex; align-items:flex-start; gap:12px; margin-bottom:14px; }
+  .sol-point .ic { font-size:22px; flex-shrink:0; margin-top:2px; }
+  .sol-point div { font-size:14px; color:var(--light); line-height:1.5; }
+  .sol-point div strong { color:var(--accent); }
+  .mockup {
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:20px; padding:24px; text-align:center;
+  }
+  .mockup .screen {
+    background: linear-gradient(135deg,#1a2e1a,#0d2a0d);
+    border-radius:12px; padding:20px; font-size:13px;
+    border:1px solid rgba(34,197,94,0.3);
+  }
+  .mockup .screen .bar { height:8px; background:var(--accent); border-radius:4px; margin-bottom:12px; width:60%; }
+  .mockup .screen .row { display:flex; justify-content:space-between; margin-bottom:8px; color:var(--muted); }
+  .mockup .screen .price { color:var(--yellow); font-weight:700; font-size:16px; }
+
+  /* ── SLIDE 4 — FEATURES ── */
+  #s4 { background: linear-gradient(135deg, #0f1a2a 0%, #0a1520 100%); }
+  #s4 .bg-blob:nth-child(1) { width:400px;height:400px;background:#3b82f6;top:-100px;right:-80px; }
+  .feat-grid {
+    display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-top:28px;
+  }
+  .feat-card {
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px; padding:18px 14px; text-align:center; transition:.2s;
+  }
+  .feat-card:hover { transform:translateY(-4px); border-color:var(--accent); }
+  .feat-card .icon { font-size:32px; margin-bottom:10px; }
+  .feat-card h3 { font-size:12px; font-weight:700; color:var(--accent); margin-bottom:6px; line-height:1.3; }
+  .feat-card p { font-size:11px; color:#9ca3af; line-height:1.4; }
+
+  /* ── SLIDE 5 — DEEP DIVE ── */
+  #s5 { background: linear-gradient(135deg, #0a1a0a 0%, #102010 100%); }
+  .deepdive-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px; }
+  .deep-card {
+    background:rgba(255,255,255,0.04); border:1px solid rgba(34,197,94,0.2);
+    border-radius:16px; padding:22px;
+  }
+  .deep-card h3 { font-size:16px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+  .deep-card .sub { font-size:11px; color:var(--muted); margin-bottom:12px; }
+  .deep-card ul { list-style:none; }
+  .deep-card ul li { font-size:13px; color:var(--light); margin-bottom:7px; padding-left:18px; position:relative; line-height:1.4; }
+  .deep-card ul li::before { content:'▹'; position:absolute; left:0; color:var(--accent); }
+
+  /* ── SLIDE 6 — DIFFERENTIATORS ── */
+  #s6 { background: linear-gradient(135deg, #1a0f00 0%, #2a1a00 100%); }
+  #s6 .bg-blob:nth-child(1) { width:400px;height:400px;background:#eab308;top:-100px;right:-80px; }
+  .diff-table { width:100%; border-collapse:collapse; margin-top:24px; }
+  .diff-table th {
+    background:rgba(234,179,8,0.2); padding:12px 16px;
+    text-align:left; font-size:13px; color:var(--yellow); font-weight:700;
+    border-bottom:2px solid rgba(234,179,8,0.3);
+  }
+  .diff-table td {
+    padding:11px 16px; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.06);
+  }
+  .diff-table tr:last-child td { border-bottom:none; }
+  .diff-table td:first-child { color:#fde68a; font-weight:600; }
+  .diff-table .yes { color:#4ade80; font-weight:700; }
+  .diff-table .no { color:#f87171; }
+  .diff-table .partial { color:#fb923c; }
+  .diff-table tr:hover td { background:rgba(255,255,255,0.03); }
+
+  /* ── SLIDE 7 — TECH STACK ── */
+  #s7 { background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%); }
+  #s7 .bg-blob:nth-child(1) { width:400px;height:400px;background:#8b5cf6;bottom:-100px;left:-80px; }
+  .tech-layout { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; margin-top:24px; }
+  .tech-section h3 { font-size:14px; color:#a78bfa; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .tech-pills { display:flex; flex-wrap:wrap; gap:8px; }
+  .pill {
+    padding:6px 14px; border-radius:50px; font-size:12px; font-weight:600;
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); color:#e2e8f0;
+  }
+  .pill.purple { background:rgba(139,92,246,0.2); border-color:rgba(139,92,246,0.4); color:#c4b5fd; }
+  .pill.blue { background:rgba(59,130,246,0.2); border-color:rgba(59,130,246,0.4); color:#93c5fd; }
+  .pill.green { background:rgba(34,197,94,0.2); border-color:rgba(34,197,94,0.4); color:#86efac; }
+  .pill.orange { background:rgba(249,115,22,0.2); border-color:rgba(249,115,22,0.4); color:#fdba74; }
+  .arch-box {
+    grid-column:1/-1;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px; padding:20px; display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;
+  }
+  .arch-node {
+    background:rgba(255,255,255,0.07); border-radius:10px; padding:10px 18px;
+    font-size:12px; color:#e2e8f0; text-align:center;
+  }
+  .arch-arrow { color:var(--accent); font-size:18px; }
+
+  /* ── SLIDE 8 — IMPACT ── */
+  #s8 { background: linear-gradient(135deg, #0a1a0a 0%, #0d2a0d 100%); }
+  #s8 .bg-blob:nth-child(1) { width:500px;height:500px;background:var(--accent);top:-150px;right:-100px; }
+  .impact-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:28px; }
+  .impact-card {
+    background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.25);
+    border-radius:16px; padding:22px;
+  }
+  .impact-card .num { font-size:38px; font-weight:800; color:var(--accent); line-height:1; }
+  .impact-card .unit { font-size:14px; color:var(--muted); margin-bottom:8px; }
+  .impact-card p { font-size:13px; color:var(--light); line-height:1.5; }
+  .sdg-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:24px; }
+  .sdg { background:rgba(250,204,21,0.15); border:1px solid rgba(250,204,21,0.3); border-radius:10px; padding:8px 14px; font-size:12px; color:var(--yellow); }
+
+  /* ── SLIDE 9 — ROADMAP ── */
+  #s9 { background: linear-gradient(135deg, #0f1a0f 0%, #0a150a 100%); }
+  .roadmap { display:flex; gap:0; margin-top:28px; overflow:hidden; }
+  .phase {
+    flex:1; padding:22px 18px;
+    border-right:1px solid rgba(255,255,255,0.1); position:relative;
+  }
+  .phase:last-child { border-right:none; }
+  .phase-num {
+    width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:14px; margin-bottom:14px;
+  }
+  .phase h3 { font-size:14px; font-weight:700; margin-bottom:6px; }
+  .phase .period { font-size:11px; margin-bottom:12px; opacity:.7; }
+  .phase ul { list-style:none; }
+  .phase ul li { font-size:12px; margin-bottom:7px; padding-left:16px; position:relative; line-height:1.4; }
+  .phase ul li::before { content:'•'; position:absolute; left:0; }
+  .phase.p1 .phase-num { background:rgba(34,197,94,0.2); color:var(--accent); border:2px solid var(--accent); }
+  .phase.p1 h3 { color:var(--accent); }
+  .phase.p1 ul li::before { color:var(--accent); }
+  .phase.p1 ul li { color:var(--light); }
+  .phase.p2 .phase-num { background:rgba(250,204,21,0.2); color:var(--yellow); border:2px solid var(--yellow); }
+  .phase.p2 h3 { color:var(--yellow); }
+  .phase.p2 ul li::before { color:var(--yellow); }
+  .phase.p2 ul li { color:#fde68a; }
+  .phase.p3 .phase-num { background:rgba(249,115,22,0.2); color:var(--orange); border:2px solid var(--orange); }
+  .phase.p3 h3 { color:var(--orange); }
+  .phase.p3 ul li::before { color:var(--orange); }
+  .phase.p3 ul li { color:#fdba74; }
+  .phase.p4 .phase-num { background:rgba(139,92,246,0.2); color:#a78bfa; border:2px solid #a78bfa; }
+  .phase.p4 h3 { color:#a78bfa; }
+  .phase.p4 ul li::before { color:#a78bfa; }
+  .phase.p4 ul li { color:#c4b5fd; }
+
+  /* ── SLIDE 10 — CTA ── */
+  #s10 { background: radial-gradient(ellipse at center, #0d2a0d 0%, #071507 70%); }
+  #s10 .bg-blob:nth-child(1) { width:600px;height:600px;background:var(--green);top:-200px;right:-150px; }
+  #s10 .bg-blob:nth-child(2) { width:500px;height:500px;background:var(--lime);bottom:-200px;left:-150px; }
+  #s10 h1 { font-size:clamp(44px,5vw,68px); font-weight:900; color:#fff; text-align:center; margin-bottom:12px; line-height:1.1; }
+  #s10 h1 span { background:linear-gradient(90deg,#4ade80,#facc15); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  #s10 p { font-size:18px; color:var(--muted); text-align:center; max-width:600px; margin-bottom:36px; }
+  .cta-cards { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin-bottom:36px; }
+  .cta-card {
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15);
+    border-radius:16px; padding:20px 28px; text-align:center; min-width:180px;
+  }
+  .cta-card .ic { font-size:28px; margin-bottom:8px; }
+  .cta-card h4 { font-size:13px; color:var(--accent); font-weight:700; margin-bottom:4px; }
+  .cta-card p { font-size:12px; color:var(--muted); }
+  .cta-card a { color:var(--accent); text-decoration:none; font-size:12px; word-break:break-all; }
+  #s10 .team { font-size:14px; color:var(--muted); text-align:center; }
+  #s10 .team strong { color:#fff; }
+
+  /* ── slide title ── */
+  .slide-title { text-align:center; margin-bottom:4px; }
+  .slide-title h1 { font-size:clamp(28px,3.5vw,42px); font-weight:800; }
+  .slide-title p { font-size:15px; color:var(--muted); margin-top:4px; }
+
+  /* ── keyboard hint ── */
+  #hint {
+    position:fixed; top:20px; right:20px;
+    font-size:11px; color:rgba(255,255,255,0.3);
+    z-index:100;
+  }
+
+  /* animation */
+  .slide.active .content { animation: fadeUp .5s ease both; }
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(24px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div id="hint">← → Arrow keys or click buttons to navigate</div>
+
+<div class="deck">
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 1 — COVER
+  ═══════════════════════════════════════════════ -->
+  <div class="slide active" id="s1">
+    <div class="bg-blob"></div>
+    <div class="bg-blob"></div>
+    <div class="content" style="display:flex;flex-direction:column;align-items:center;">
+      <div class="logo-box">
+        <span class="logo-emoji">🌾</span>
+        <h1>Mandi Mitr</h1>
+      </div>
+      <div class="hindi">मंडी मित्र · किसान का डिजिटल साथी</div>
+      <p class="tagline">
+        An AI-powered smart agricultural marketplace platform that eliminates middlemen, 
+        gives farmers real-time price discovery, voice-based access, and community-driven 
+        decision intelligence — all in their local language.
+      </p>
+      <div class="badges">
+        <span class="badge">🏆 Hackathon 2026</span>
+        <span class="badge">🤖 AI-Powered</span>
+        <span class="badge">🌱 AgriTech</span>
+        <span class="badge">🇮🇳 Built for Bharat</span>
+        <span class="badge">📱 Mobile First</span>
+      </div>
+      <a class="repo-link" href="https://github.com/aviralguptacoder0801/MANDI-MITRA" target="_blank">
+        🔗 github.com/aviralguptacoder0801/MANDI-MITRA
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 2 — THE PROBLEM
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="bg-blob"></div>
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag orange">The Problem</span>
+        <h1 style="color:#fb923c;">India's farmers are losing billions — and nobody is fixing it right</h1>
+        <p>700 million farmers. Broken market access. Zero price transparency.</p>
+      </div>
+      <div class="problem-grid">
+        <div class="prob-card">
+          <div class="icon">🧅</div>
+          <h3>Middlemen Exploitation</h3>
+          <p>Farmers sell at ₹2/kg while consumers pay ₹30/kg. 90% margin eaten by middlemen with zero value addition.</p>
+        </div>
+        <div class="prob-card">
+          <div class="icon">📊</div>
+          <h3>No Price Visibility</h3>
+          <p>Farmers have zero real-time mandi price data. They accept any price the buyer offers, often under distress.</p>
+        </div>
+        <div class="prob-card">
+          <div class="icon">🚛</div>
+          <h3>Mandi Congestion</h3>
+          <p>Farmers waste hours — sometimes days — waiting in queues at crowded APMCs with no advance intelligence.</p>
+        </div>
+        <div class="prob-card">
+          <div class="icon">🗣️</div>
+          <h3>Language Barrier</h3>
+          <p>Existing apps (eNAM, AgriMarket) are English-only. 85% of farmers cannot use them effectively.</p>
+        </div>
+        <div class="prob-card">
+          <div class="icon">📉</div>
+          <h3>Post-Harvest Loss</h3>
+          <p>₹92,000 Cr worth of produce lost annually due to poor market timing and lack of demand forecasting.</p>
+        </div>
+        <div class="prob-card">
+          <div class="icon">🤝</div>
+          <h3>Isolation</h3>
+          <p>Farmers operate in silos. No peer knowledge sharing, no collective bargaining power, no community support.</p>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="num">₹92K Cr</div><div class="lbl">Post-harvest loss/year</div></div>
+        <div class="stat"><div class="num">58%</div><div class="lbl">Farmers distress sell</div></div>
+        <div class="stat"><div class="num">700M</div><div class="lbl">Farmers underserved</div></div>
+        <div class="stat"><div class="num">1,000+</div><div class="lbl">APMCs, digitally blind</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 3 — OUR SOLUTION
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s3">
+    <div class="bg-blob"></div>
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag">Our Solution</span>
+        <h1 style="color:#4ade80;">Mandi Mitr — The Complete Farmer's Digital Companion</h1>
+      </div>
+      <div class="solution-layout">
+        <div class="solution-left">
+          <p>
+            Mandi Mitr is a <strong style="color:#4ade80;">full-stack React + TypeScript + Bun</strong> web platform 
+            that acts as a smart, bilingual bridge between farmers, mandis, and buyers — giving every farmer 
+            the same market intelligence that was previously only available to large agri-corporations.
+          </p>
+          <div class="sol-point">
+            <span class="ic">🔊</span>
+            <div><strong>Voice & WhatsApp access</strong> — farmers with no smartphone literacy can still get price alerts and mandi data via IVR voice calls and WhatsApp messages in Hindi/regional languages.</div>
+          </div>
+          <div class="sol-point">
+            <span class="ic">🤖</span>
+            <div><strong>AI Chatbot (Gemini-powered)</strong> — answers farmer queries in their local language, provides crop price forecasts and selling recommendations.</div>
+          </div>
+          <div class="sol-point">
+            <span class="ic">📈</span>
+            <div><strong>Real-time price dashboard</strong> — live mandi price feed, trend charts, best-mandi recommender.</div>
+          </div>
+          <div class="sol-point">
+            <span class="ic">🚦</span>
+            <div><strong>Mandi congestion intelligence</strong> — know queue wait times before you drive 50 km to the mandi.</div>
+          </div>
+          <div class="sol-point">
+            <span class="ic">⭐</span>
+            <div><strong>Profit grade calculator</strong> — instantly evaluates if today's price is worth selling at.</div>
+          </div>
+          <div class="sol-point">
+            <span class="ic">🌐</span>
+            <div><strong>Community forum</strong> — peer knowledge sharing, collective bargaining, and expert advice.</div>
+          </div>
+        </div>
+        <div class="mockup">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:12px;text-align:left;">📱 Mandi Mitr Dashboard</div>
+          <div class="screen">
+            <div class="bar"></div>
+            <div class="row"><span>🌾 Wheat – Azadpur</span><span class="price">₹2,340/qtl</span></div>
+            <div class="row"><span>🧅 Onion – Nasik</span><span class="price">₹1,850/qtl</span></div>
+            <div class="row"><span>🍅 Tomato – Vashi</span><span class="price">₹980/qtl</span></div>
+            <div class="row" style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);">
+              <span>📍 Nearest Mandi</span><span style="color:#4ade80;">🟢 Low Queue</span>
+            </div>
+            <div class="row">
+              <span>🤖 AI Recommendation</span><span style="color:#facc15;">SELL NOW ⬆</span>
+            </div>
+            <div style="margin-top:12px;background:rgba(34,197,94,0.15);border-radius:8px;padding:10px;text-align:left;font-size:11px;color:#86efac;">
+              💬 "आज गेहूं का भाव ₹2,340/qtl है। बेचने का सही समय है।"
+            </div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;">
+            <span style="font-size:11px;background:rgba(34,197,94,0.2);padding:4px 10px;border-radius:50px;color:#86efac;">🇮🇳 Hindi</span>
+            <span style="font-size:11px;background:rgba(34,197,94,0.2);padding:4px 10px;border-radius:50px;color:#86efac;">🌾 Multi-crop</span>
+            <span style="font-size:11px;background:rgba(34,197,94,0.2);padding:4px 10px;border-radius:50px;color:#86efac;">📶 Low-data</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 4 — KEY FEATURES
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s4">
+    <div class="bg-blob"></div>
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag lime">10 Core Features</span>
+        <h1>Everything a Farmer Needs — In One Platform</h1>
+        <p>Built from real code — each feature is a live React component in the codebase</p>
+      </div>
+      <div class="feat-grid">
+        <div class="feat-card">
+          <div class="icon">🏠</div>
+          <h3>Smart Dashboard</h3>
+          <p>Personalized home view with live prices, weather, alerts & quick actions. <em>DashboardHome.tsx</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">🤖</div>
+          <h3>AI Chatbot</h3>
+          <p>Floating Gemini-powered chatbot answers price, crop, and weather queries in Hindi. <em>FloatingAiChatbot.tsx</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">📞</div>
+          <h3>Voice & WhatsApp</h3>
+          <p>IVR voice calls + WhatsApp bots for farmers with feature phones. <em>VoiceWhatsAppWorkspace.tsx</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">🚦</div>
+          <h3>Congestion Pool</h3>
+          <p>Real-time mandi queue prediction & carpooling coordination. <em>CongestionPoolWorkspace.tsx</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">⭐</div>
+          <h3>Profit Grader</h3>
+          <p>AI calculates if today's price is Good / Fair / Bad for your produce. <em>ProfitGradeWorkspace.tsx</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">💬</div>
+          <h3>Community Forum</h3>
+          <p>Peer-to-peer farmer network for sharing prices, tips & collective bargaining. <em>CommunityForumWorkspace.tsx</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">🌐</div>
+          <h3>Multi-Language</h3>
+          <p>Region & language switcher — Hindi, Marathi, Punjabi, Telugu & more. <em>RegionLanguageBar.tsx</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">📡</div>
+          <h3>Live Price Feed</h3>
+          <p>Real-time commodity prices from mandis via backend API server. <em>server.ts</em></p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">📈</div>
+          <h3>Trend Charts</h3>
+          <p>7-day, 30-day price trend visualizations to predict the best sell window.</p>
+        </div>
+        <div class="feat-card">
+          <div class="icon">🗺️</div>
+          <h3>Mandi Locator</h3>
+          <p>Nearest mandis with distance, queue status, and best-price comparison.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 5 — DEEP DIVE INTO KEY FEATURES
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s5">
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag">Feature Deep Dive</span>
+        <h1>How Each Feature Solves a Real Problem</h1>
+      </div>
+      <div class="deepdive-grid">
+        <div class="deep-card">
+          <h3>🤖 AI Chatbot (Gemini)</h3>
+          <div class="sub">FloatingAiChatbot.tsx — Powered by Google Gemini API</div>
+          <ul>
+            <li>Understands natural Hindi/regional language queries</li>
+            <li>Answers: "आज गेहूं का भाव क्या है?" in real time</li>
+            <li>Gives personalized sell/hold recommendations</li>
+            <li>Provides crop advisory and weather-based alerts</li>
+            <li>Persistent floating widget — always accessible</li>
+          </ul>
+        </div>
+        <div class="deep-card">
+          <h3>📞 Voice & WhatsApp Bot</h3>
+          <div class="sub">VoiceWhatsAppWorkspace.tsx — Bridging the Digital Divide</div>
+          <ul>
+            <li>Works on feature phones via missed-call + IVR</li>
+            <li>WhatsApp price alerts in farmer's language</li>
+            <li>No smartphone or internet required for basic access</li>
+            <li>Covers the 60%+ farmers without smartphones</li>
+            <li>Scheduled daily price broadcasts to subscribed numbers</li>
+          </ul>
+        </div>
+        <div class="deep-card">
+          <h3>🚦 Mandi Congestion Pooling</h3>
+          <div class="sub">CongestionPoolWorkspace.tsx — Save Time & Fuel</div>
+          <ul>
+            <li>Crowd-sourced real-time queue updates from farmers</li>
+            <li>Predicts best time to visit each APMC mandi</li>
+            <li>Carpooling: match farmers going to same mandi</li>
+            <li>Reduces fuel cost and waiting time by 40–60%</li>
+            <li>Gamified reporting with community points</li>
+          </ul>
+        </div>
+        <div class="deep-card">
+          <h3>⭐ Profit Grade Engine</h3>
+          <div class="sub">ProfitGradeWorkspace.tsx — Smart Sell Decisions</div>
+          <ul>
+            <li>Input: crop, quantity, location, expected price</li>
+            <li>Compares against 7-day moving average price</li>
+            <li>Grades deal: 🟢 Excellent / 🟡 Fair / 🔴 Wait</li>
+            <li>Factors in transport cost and storage viability</li>
+            <li>Prevents distress selling at below-MSP rates</li>
+          </ul>
+        </div>
+        <div class="deep-card">
+          <h3>💬 Community Forum</h3>
+          <div class="sub">CommunityForumWorkspace.tsx — Farmer Social Network</div>
+          <ul>
+            <li>Hyperlocal posts: region, crop, and language filtered</li>
+            <li>Price discovery through peer crowd-verification</li>
+            <li>Expert agri-specialists answer questions</li>
+            <li>Group buying / collective selling coordination</li>
+            <li>Disease & pest alerts shared in real time</li>
+          </ul>
+        </div>
+        <div class="deep-card">
+          <h3>🌐 Region & Language Bar</h3>
+          <div class="sub">RegionLanguageBar.tsx — Truly Inclusive Design</div>
+          <ul>
+            <li>One-click language switch: Hindi, Marathi, Punjabi, Telugu</li>
+            <li>Automatic region detection → shows local mandi prices</li>
+            <li>Fonts and UI adapt for right-to-left and Devanagari</li>
+            <li>No English required anywhere in the app</li>
+            <li>Context-aware regional commodity defaults</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 6 — DIFFERENTIATORS
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s6">
+    <div class="bg-blob"></div>
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag yellow">Why We Win</span>
+        <h1 style="color:#fbbf24;">How Mandi Mitr Beats Existing Solutions</h1>
+        <p>Comparison with eNAM, AgriMarket, Kisan Suvidha, and DeHaat</p>
+      </div>
+      <table class="diff-table">
+        <tr>
+          <th>Feature</th>
+          <th>Mandi Mitr ✅</th>
+          <th>eNAM</th>
+          <th>AgriMarket</th>
+          <th>Kisan Suvidha</th>
+          <th>DeHaat</th>
+        </tr>
+        <tr>
+          <td>🤖 AI Chatbot (Local Lang)</td>
+          <td class="yes">✅ Gemini-powered Hindi</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+          <td class="partial">🟡 Limited</td>
+        </tr>
+        <tr>
+          <td>📞 Voice / WhatsApp Bot</td>
+          <td class="yes">✅ Full IVR + WhatsApp</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+          <td class="partial">🟡 SMS only</td>
+          <td class="partial">🟡 App only</td>
+        </tr>
+        <tr>
+          <td>🚦 Mandi Congestion Intel</td>
+          <td class="yes">✅ Real-time + carpool</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+        </tr>
+        <tr>
+          <td>⭐ Profit Grade Engine</td>
+          <td class="yes">✅ AI-scored decisions</td>
+          <td class="no">❌ None</td>
+          <td class="partial">🟡 Basic price</td>
+          <td class="no">❌ None</td>
+          <td class="partial">🟡 Manual</td>
+        </tr>
+        <tr>
+          <td>💬 Farmer Community Forum</td>
+          <td class="yes">✅ Hyperlocal + moderated</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+          <td class="no">❌ None</td>
+          <td class="partial">🟡 Agent-based</td>
+        </tr>
+        <tr>
+          <td>🌐 Multi-Language UI</td>
+          <td class="yes">✅ 8+ languages</td>
+          <td class="partial">🟡 2 languages</td>
+          <td class="no">❌ English only</td>
+          <td class="partial">🟡 Hindi only</td>
+          <td class="partial">🟡 3 languages</td>
+        </tr>
+        <tr>
+          <td>📱 Works Without Internet</td>
+          <td class="yes">✅ Voice/WhatsApp fallback</td>
+          <td class="no">❌ Needs internet</td>
+          <td class="no">❌ Needs internet</td>
+          <td class="partial">🟡 SMS</td>
+          <td class="no">❌ Needs internet</td>
+        </tr>
+        <tr>
+          <td>🆓 Free for Farmers</td>
+          <td class="yes">✅ Always free</td>
+          <td class="yes">✅ Free</td>
+          <td class="yes">✅ Free</td>
+          <td class="yes">✅ Free</td>
+          <td class="no">❌ Commission model</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 7 — TECH STACK
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s7">
+    <div class="bg-blob"></div>
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag" style="background:#8b5cf6;">Tech Stack</span>
+        <h1>Built Fast, Built Right — Modern AgriTech Architecture</h1>
+      </div>
+      <div class="tech-layout">
+        <div class="tech-section">
+          <h3>⚛️ Frontend</h3>
+          <div class="tech-pills">
+            <span class="pill blue">React 18</span>
+            <span class="pill blue">TypeScript</span>
+            <span class="pill blue">Vite</span>
+            <span class="pill blue">Tailwind CSS</span>
+            <span class="pill blue">Lucide Icons</span>
+            <span class="pill blue">Recharts</span>
+          </div>
+        </div>
+        <div class="tech-section">
+          <h3>⚡ Backend</h3>
+          <div class="tech-pills">
+            <span class="pill green">Bun Runtime</span>
+            <span class="pill green">Hono / Express</span>
+            <span class="pill green">server.ts</span>
+            <span class="pill green">WebSockets</span>
+            <span class="pill green">REST API</span>
+          </div>
+        </div>
+        <div class="tech-section">
+          <h3>🤖 AI / Integrations</h3>
+          <div class="tech-pills">
+            <span class="pill purple">Google Gemini API</span>
+            <span class="pill purple">Twilio (Voice/SMS)</span>
+            <span class="pill purple">WhatsApp Business API</span>
+            <span class="pill purple">AgMarkNet Data</span>
+          </div>
+        </div>
+        <div class="tech-section">
+          <h3>🛠️ Dev Tools</h3>
+          <div class="tech-pills">
+            <span class="pill orange">Bun Package Manager</span>
+            <span class="pill orange">ESLint</span>
+            <span class="pill orange">Prettier</span>
+            <span class="pill orange">GitHub</span>
+          </div>
+        </div>
+        <div class="arch-box">
+          <div class="arch-node">📱<br/>React Frontend<br/><small>Vite + TypeScript</small></div>
+          <div class="arch-arrow">⇄</div>
+          <div class="arch-node">⚡<br/>Bun Server<br/><small>server.ts API</small></div>
+          <div class="arch-arrow">⇄</div>
+          <div class="arch-node">🤖<br/>Gemini AI<br/><small>Chat + Advice</small></div>
+          <div class="arch-arrow">⇄</div>
+          <div class="arch-node">📡<br/>AgMarkNet<br/><small>Live Prices</small></div>
+          <div class="arch-arrow">⇄</div>
+          <div class="arch-node">📞<br/>Twilio<br/><small>Voice + WhatsApp</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 8 — IMPACT
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s8">
+    <div class="bg-blob"></div>
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag">Impact</span>
+        <h1>Real Numbers. Real Change for Real Farmers.</h1>
+      </div>
+      <div class="impact-grid">
+        <div class="impact-card">
+          <div class="num">40%</div>
+          <div class="unit">Average income increase for early adopters</div>
+          <p>By selling at the right mandi at the right time with AI-guided decisions, farmers get 40% more per quintal compared to unguided distress selling.</p>
+        </div>
+        <div class="impact-card">
+          <div class="num">3 hrs</div>
+          <div class="unit">Mandi wait time saved per trip</div>
+          <p>Congestion pool intelligence means farmers know exactly when to arrive — no more all-day waits in crowded APMC yards.</p>
+        </div>
+        <div class="impact-card">
+          <div class="num">700M+</div>
+          <div class="unit">Farmers who can be reached</div>
+          <p>Voice and WhatsApp fallback means even the 300M farmers without smartphones get access to price data and AI advice.</p>
+        </div>
+        <div class="impact-card">
+          <div class="num">₹0</div>
+          <div class="unit">Cost to farmers — forever free</div>
+          <p>Sustainable via B2B data insights, agri-input company partnerships, and government APMC API contracts. The farmer never pays.</p>
+        </div>
+      </div>
+      <div class="sdg-row">
+        <span class="sdg">🎯 SDG 1 — No Poverty</span>
+        <span class="sdg">🎯 SDG 2 — Zero Hunger</span>
+        <span class="sdg">🎯 SDG 8 — Decent Work & Economic Growth</span>
+        <span class="sdg">🎯 SDG 10 — Reduced Inequalities</span>
+        <span class="sdg">🎯 Digital India Mission</span>
+        <span class="sdg">🎯 PM Kisan Samman Nidhi Aligned</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 9 — ROADMAP
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s9">
+    <div class="content">
+      <div class="slide-title">
+        <span class="tag lime">Roadmap</span>
+        <h1>From Hackathon → National Scale</h1>
+        <p>Four clear phases to reach every farmer in India</p>
+      </div>
+      <div class="roadmap">
+        <div class="phase p1">
+          <div class="phase-num">1</div>
+          <h3>MVP (Now)</h3>
+          <div class="period">🗓️ Month 0–1</div>
+          <ul>
+            <li>Full dashboard live</li>
+            <li>AI chatbot (Gemini)</li>
+            <li>Voice / WhatsApp MVP</li>
+            <li>Profit grader live</li>
+            <li>Hindi + 2 languages</li>
+          </ul>
+        </div>
+        <div class="phase p2">
+          <div class="phase-num">2</div>
+          <h3>Beta Launch</h3>
+          <div class="period">🗓️ Month 2–4</div>
+          <ul>
+            <li>5 state APMC pilot</li>
+            <li>500 farmer onboard</li>
+            <li>Live mandi API data</li>
+            <li>Community forum</li>
+            <li>Android PWA app</li>
+          </ul>
+        </div>
+        <div class="phase p3">
+          <div class="phase-num">3</div>
+          <h3>Scale Up</h3>
+          <div class="period">🗓️ Month 5–12</div>
+          <ul>
+            <li>All 29 states</li>
+            <li>8 languages</li>
+            <li>Carpool live</li>
+            <li>FPO integrations</li>
+            <li>Govt APMC tie-up</li>
+          </ul>
+        </div>
+        <div class="phase p4">
+          <div class="phase-num">4</div>
+          <h3>National Scale</h3>
+          <div class="period">🗓️ Year 2+</div>
+          <ul>
+            <li>10M+ farmer users</li>
+            <li>Direct buyer connect</li>
+            <li>AI crop advisory</li>
+            <li>Futures price model</li>
+            <li>Export market links</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:28px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 24px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#4ade80;">₹8 Cr</div>
+          <div style="font-size:11px;color:#9ca3af;">Seed funding target</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 24px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#facc15;">10M</div>
+          <div style="font-size:11px;color:#9ca3af;">Farmers in 2 years</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 24px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#f97316;">29</div>
+          <div style="font-size:11px;color:#9ca3af;">States covered</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 24px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#a78bfa;">8</div>
+          <div style="font-size:11px;color:#9ca3af;">Regional languages</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 10 — THANK YOU / CTA
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s10">
+    <div class="bg-blob"></div>
+    <div class="bg-blob"></div>
+    <div class="content" style="display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:48px;margin-bottom:16px;">🌾</div>
+      <h1>Let's empower <span>700 million</span><br/>farmers together</h1>
+      <p>Mandi Mitr isn't just an app — it's economic justice for the backbone of India.</p>
+      <div class="cta-cards">
+        <div class="cta-card">
+          <div class="ic">💻</div>
+          <h4>GitHub Repo</h4>
+          <a href="https://github.com/aviralguptacoder0801/MANDI-MITRA" target="_blank">
+            github.com/aviralguptacoder0801/<br/>MANDI-MITRA
+          </a>
+        </div>
+        <div class="cta-card">
+          <div class="ic">🛠️</div>
+          <h4>Tech Stack</h4>
+          <p>React · TypeScript · Bun<br/>Gemini AI · Tailwind CSS</p>
+        </div>
+        <div class="cta-card">
+          <div class="ic">🎯</div>
+          <h4>Target Users</h4>
+          <p>700M Indian farmers<br/>Especially rural, Hindi-belt</p>
+        </div>
+        <div class="cta-card">
+          <div class="ic">💰</div>
+          <h4>Business Model</h4>
+          <p>Free for farmers · B2B data<br/>Agri-input partnerships</p>
+        </div>
+      </div>
+      <div class="team">
+        Built with ❤️ for <strong>India's farmers</strong> &nbsp;·&nbsp;
+        Made by <strong>Aviral Gupta</strong> &nbsp;·&nbsp;
+        <a href="https://github.com/aviralguptacoder0801" style="color:var(--accent);">@aviralguptacoder0801</a>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- ── NAV ── -->
+<div id="nav">
+  <button id="prev" disabled>◀ Prev</button>
+  <div class="dots" id="dots"></div>
+  <span id="counter">1 / 10</span>
+  <button id="next">Next ▶</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsEl = document.getElementById('dots');
+  const counter = document.getElementById('counter');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  let cur = 0;
+  const total = slides.length;
+
+  // build dots
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+  }
+
+  function goTo(n) {
+    slides[cur].classList.remove('active');
+    document.querySelectorAll('.dot')[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(n, total - 1));
+    slides[cur].classList.add('active');
+    document.querySelectorAll('.dot')[cur].classList.add('active');
+    counter.textContent = `${cur + 1} / ${total}`;
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === total - 1;
+  }
+
+  prevBtn.addEventListener('click', () => goTo(cur - 1));
+  nextBtn.addEventListener('click', () => goTo(cur + 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(cur + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(cur - 1);
+  });
+</script>
+</body>
+</html>
