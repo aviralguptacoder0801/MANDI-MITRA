@@ -1,0 +1,429 @@
+import {
+  Bot,
+  ExternalLink,
+  Globe,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  RotateCcw,
+  Send,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  CROPS,
+  UP_DISTRICTS,
+  type CropId,
+  type CropQualityInput,
+  type DistrictId,
+  type LanguageCode,
+} from '../data/upMandis';
+import type { GroundingMode, GroundingSource } from '../utils/grounding';
+import { DISTRICT_GEO, type UiStrings } from '../utils/i18n';
+import {
+  formatINR,
+  type RankedMandiProfit,
+  type SellVsStoreAdvisory,
+} from '../utils/mandiEngine';
+
+interface ChatMsg {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  groundingUsed?: 'search' | 'maps';
+  sources?: GroundingSource[];
+}
+
+interface FloatingAiChatbotProps {
+  cropId: CropId;
+  originDistrict: DistrictId;
+  userGps: { lat: number; lng: number } | null;
+  quantityQtl: number;
+  quality: CropQualityInput;
+  topMandi: RankedMandiProfit;
+  advisory: SellVsStoreAdvisory;
+  language: LanguageCode;
+  t: UiStrings;
+}
+
+const QUICK_PROMPTS_BY_LANG: Record<LanguageCode, string[]> = {
+  hi: [
+    'आज यूपी में गेहूं/आलू का ताजा भाव और मौसम क्या है?',
+    'मेरे पास नज़दीकी कोल्ड स्टोर और मंडी कहाँ हैं?',
+    'मेरी फसल के लिए यह मंडी नंबर-1 क्यों है?',
+  ],
+  awadhi: [
+    'आज यूपी मा आलू-गेहूं के ताजा भाव अउर मौसम का बा?',
+    'हमारे पास नज़दीकी कोल्ड स्टोर अउर मंडी कहाँ बा?',
+    'ई मंडी हमरे खातिर सबसे बढ़िया काहे बा?',
+  ],
+  bhojpuri: [
+    'आज यूपी में ताजा मंडी भाव आ मौसम के का हाल बा?',
+    'हमरे लगले कोल्ड स्टोर आ मंडी कहाँ बाटे?',
+    'ई मंडी सबसे बेसी कमाई काहे देत बा?',
+  ],
+  en: [
+    'Latest UP mandi price & weather update today?',
+    'Find verified cold storages and mandis near me',
+    'Why is this mandi ranked #1 for my crop?',
+  ],
+};
+
+export function FloatingAiChatbot({
+  cropId,
+  originDistrict,
+  userGps,
+  quantityQtl,
+  quality,
+  topMandi,
+  advisory,
+  language,
+  t,
+}: FloatingAiChatbotProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [groundingMode, setGroundingMode] = useState<GroundingMode>('auto');
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    {
+      id: 'init-1',
+      role: 'assistant',
+      text: t.chatbot.greeting,
+    },
+  ]);
+
+  useEffect(() => {
+    setMessages((prev) =>
+      prev.length === 1 && prev[0].id === 'init-1'
+        ? [{ id: 'init-1', role: 'assistant', text: t.chatbot.greeting }]
+        : prev
+    );
+  }, [t.chatbot.greeting]);
+
+  const scrollEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
+
+  const crop = CROPS[cropId];
+  const district = UP_DISTRICTS.find((d) => d.id === originDistrict) ?? UP_DISTRICTS[0];
+  const activeCoords = userGps ?? {
+    lat: DISTRICT_GEO[originDistrict].lat,
+    lng: DISTRICT_GEO[originDistrict].lng,
+  };
+  const quickPrompts = QUICK_PROMPTS_BY_LANG[language] ?? QUICK_PROMPTS_BY_LANG.hi;
+
+  async function sendMessage(text: string) {
+    const clean = text.trim();
+    if (!clean || loading) return;
+
+    setError(null);
+    const nextMessages: ChatMsg[] = [
+      ...messages,
+      { id: `u-${Date.now()}`, role: 'user', text: clean },
+    ];
+    setMessages(nextMessages);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: nextMessages.map((m) => ({ role: m.role, text: m.text })),
+          language,
+          groundingMode,
+          latLng: {
+            latitude: activeCoords.lat,
+            longitude: activeCoords.lng,
+          },
+          context: {
+            crop: `${crop.nameEn} (${crop.nameHi})`,
+            originDistrict: district.label,
+            quantityQtl,
+            quality,
+            topMandiName: topMandi.mandi.name,
+            topMandiNetProfitRs: topMandi.netProfitRs,
+            topMandiGradeAdjustedPricePerQtl: topMandi.gradeAdjustedPricePerQtl,
+            sellVsStoreVerdict: advisory.verdict,
+            sellVsStoreHeadline: advisory.headline,
+            mspRatePerQtl: crop.msp.ratePerQtl,
+            mspScheme: crop.msp.schemeName,
+          },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'AI Assistant could not respond.');
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: data.reply,
+          groundingUsed: data.groundingUsed,
+          sources: Array.isArray(data.sources) ? data.sources : [],
+        },
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to connect to AI Assistant.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    sendMessage(input);
+  }
+
+  function handleClearChat() {
+    setError(null);
+    setMessages([
+      {
+        id: 'init-1',
+        role: 'assistant',
+        text: t.chatbot.greeting,
+      },
+    ]);
+  }
+
+  return (
+    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
+      {/* Chat Drawer Panel */}
+      {isOpen && (
+        <section
+          aria-label="MandiMitra AI Help Chatbot"
+          data-testid="floating-ai-chat-panel"
+          className="w-[calc(100vw-2.5rem)] sm:w-[390px] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[560px]"
+        >
+          {/* Header */}
+          <div className="px-4 py-3 bg-emerald-800 text-white flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-emerald-700 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-white" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-display text-sm font-bold leading-tight truncate">
+                  {t.chatbot.title}
+                </h2>
+                <p className="text-[11px] text-emerald-100 truncate">
+                  {crop.nameEn} · {topMandi.mandi.districtLabel} ({formatINR(topMandi.netProfitRs)})
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handleClearChat}
+                aria-label="Start new chat"
+                title="Start new chat"
+                className="p-1.5 rounded-lg text-emerald-100 hover:bg-emerald-700/70 hover:text-white"
+              >
+                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                aria-label={t.chatbot.closeAria}
+                className="p-1.5 rounded-lg text-emerald-100 hover:bg-emerald-700/70 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Grounding Mode Selector (Auto / Google Search / Google Maps) */}
+          <div
+            className="px-3.5 py-2 bg-emerald-50/70 border-b border-emerald-100 flex items-center justify-between gap-2"
+            role="group"
+            aria-label="Live data source mode"
+          >
+            <span className="text-[11px] font-semibold text-emerald-950">Live Data:</span>
+            <div className="inline-flex items-center gap-1">
+              {(
+                [
+                  { id: 'auto', label: 'Auto', icon: Sparkles },
+                  { id: 'search', label: 'Google Search', icon: Globe },
+                  { id: 'maps', label: 'Google Maps', icon: MapPin },
+                ] as const
+              ).map(({ id, label, icon: Icon }) => {
+                const active = groundingMode === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    data-testid={`chat-grounding-${id}`}
+                    aria-pressed={active}
+                    onClick={() => setGroundingMode(id)}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                      active
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className="w-3 h-3" aria-hidden="true" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Scrollable Conversation Thread */}
+          <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-slate-50/70 min-h-[250px]">
+            {messages.map((m) => (
+              <div
+                key={m.id}
+                className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}
+              >
+                <div
+                  className={`max-w-[88%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed whitespace-pre-line ${
+                    m.role === 'user'
+                      ? 'bg-emerald-700 text-white'
+                      : 'bg-white text-slate-800 border border-slate-200'
+                  }`}
+                >
+                  {m.text}
+
+                  {/* Grounded Google Search & Google Maps Sources */}
+                  {m.role === 'assistant' && m.sources && m.sources.length > 0 && (
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1.5">
+                      <p className="text-[10px] font-semibold text-slate-500">
+                        {m.groundingUsed === 'maps'
+                          ? 'Google Maps Places & Links:'
+                          : 'Verified Web Sources:'}
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        {m.sources.map((src) => (
+                          <a
+                            key={src.uri}
+                            href={src.uri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-start gap-1.5 text-[11px] font-semibold text-emerald-800 hover:underline break-words"
+                          >
+                            {src.type === 'maps' ? (
+                              <MapPin className="w-3 h-3 mt-0.5 shrink-0 text-emerald-700" aria-hidden="true" />
+                            ) : (
+                              <Globe className="w-3 h-3 mt-0.5 shrink-0 text-sky-700" aria-hidden="true" />
+                            )}
+                            <span className="flex-1">
+                              {src.title}
+                              {src.snippet && (
+                                <span className="block font-normal text-[10px] text-slate-500 mt-0.5">
+                                  “{src.snippet.slice(0, 100)}”
+                                </span>
+                              )}
+                            </span>
+                            <ExternalLink className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex items-center gap-2 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 w-fit">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" aria-hidden="true" />
+                <span>
+                  {groundingMode === 'maps'
+                    ? 'Checking Google Maps...'
+                    : 'Searching live data...'}
+                </span>
+              </div>
+            )}
+
+            {error && (
+              <p
+                role="alert"
+                className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2.5"
+              >
+                {error}
+              </p>
+            )}
+            <div ref={scrollEndRef} />
+          </div>
+
+          {/* Quick Help Prompts */}
+          <div className="px-3.5 py-2 bg-white border-t border-slate-100 flex flex-wrap gap-1.5">
+            {quickPrompts.map((q) => (
+              <button
+                key={q}
+                type="button"
+                disabled={loading}
+                onClick={() => sendMessage(q)}
+                className="text-[11px] font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md px-2 py-1 transition-colors text-left disabled:opacity-60"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {/* Composer */}
+          <form
+            onSubmit={handleSubmit}
+            className="p-3 bg-white border-t border-slate-200 flex items-center gap-2"
+          >
+            <label htmlFor="floating-chat-input" className="sr-only">
+              Ask MandiMitra AI anything
+            </label>
+            <input
+              id="floating-chat-input"
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t.chatbot.placeholder}
+              className="flex-1 h-9 px-3 rounded-lg border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              aria-label="Send chat message"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white shrink-0 transition-colors"
+            >
+              <Send className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* Floating Corner Icon Trigger */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={isOpen ? t.chatbot.closeAria : t.chatbot.openAria}
+        aria-expanded={isOpen}
+        data-testid="floating-ai-chat-trigger"
+        className="inline-flex items-center justify-center w-13 h-13 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white shadow-lg hover:shadow-xl transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+      >
+        {isOpen ? (
+          <X className="w-5 h-5" aria-hidden="true" />
+        ) : (
+          <MessageCircle className="w-6 h-6" aria-hidden="true" />
+        )}
+      </button>
+    </div>
+  );
+}

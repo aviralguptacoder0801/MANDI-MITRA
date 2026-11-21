@@ -1,0 +1,11 @@
+{
+  "name": "MandiMitra — Farmer Market Price Intelligence",
+  "description": "Uttar Pradesh farmer mandi advisory platform with net-profit mandi ranking, crop quality grading, 15-day Sell Now vs. Store forecasts, congestion alerts, truck pooling, regional voice/WhatsApp advisory, and farmer community forum.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
