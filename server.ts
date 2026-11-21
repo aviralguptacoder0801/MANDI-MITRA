@@ -5,6 +5,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import {
+  buildGeminiAttemptPlan,
+  isRetryableGeminiError,
+  normalizeChatForGemini,
+  type GeminiAttempt,
+  type GroundingToolChoice,
+} from './src/utils/chatHistory.ts';
+import {
   extractGroundingSources,
   selectGroundingTool,
   type GroundingMode,
@@ -31,12 +38,63 @@ function getGeminiClient(): GoogleGenAI {
   });
 }
 
+function buildToolConfig(
+  attempt: GeminiAttempt,
+  latLng: { latitude: number; longitude: number }
+): Record<string, unknown> {
+  const cfg: Record<string, unknown> = {};
+  if (attempt.model === 'gemini-4-hydrogen') {
+    cfg.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
+  }
+  if (attempt.tool === 'maps') {
+    cfg.tools = [{ googleMaps: {} }];
+    cfg.toolConfig = {
+      retrievalConfig: {
+        latLng,
+      },
+    };
+  } else if (attempt.tool === 'search') {
+    cfg.tools = [{ googleSearch: {} }];
+  }
+  return cfg;
+}
+
+async function runGeminiAttemptPlan<T>(
+  preferredTool: GroundingToolChoice,
+  executor: (attempt: GeminiAttempt) => Promise<T>
+): Promise<{ result: T; attempt: GeminiAttempt }> {
+  const plan = buildGeminiAttemptPlan(preferredTool);
+  let lastError: unknown = null;
+
+  for (let i = 0; i < plan.length; i++) {
+    const attempt = plan[i];
+    try {
+      const result = await executor(attempt);
+      return { result, attempt };
+    } catch (err) {
+      lastError = err;
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[MandiMitra Gemini] Attempt ${i + 1}/${plan.length} (${attempt.model}, tool=${attempt.tool}) failed:`,
+        errMsg.slice(0, 300)
+      );
+      if (!isRetryableGeminiError(err) || i === plan.length - 1) {
+        throw err;
+      }
+      // Brief backoff before trying the next model/tool combination
+      await new Promise((resolve) => setTimeout(resolve, 250 * (i + 1)));
+    }
+  }
+
+  throw lastError ?? new Error('AI request failed.');
+}
+
 function getErrorStatus(err: unknown): { status: number; message: string } {
   const raw = err instanceof Error ? err.message : String(err);
   if (raw.includes('GEMINI_API_KEY')) {
     return {
       status: 503,
-      message: 'AI advisory service is unavailable: API key is not configured in Settings > Secrets.',
+      message: 'AI assistant is unavailable: Gemini API key is not configured in Settings > Secrets.',
     };
   }
   if (raw.includes('PERMISSION_DENIED') || raw.includes('API_KEY_INVALID') || raw.includes('403')) {
@@ -48,12 +106,13 @@ function getErrorStatus(err: unknown): { status: number; message: string } {
   if (raw.includes('RESOURCE_EXHAUSTED') || raw.includes('429')) {
     return {
       status: 429,
-      message: 'AI advisory rate limit reached. Please wait a moment and try again.',
+      message:
+        'Gemini API quota limit reached right now. Please wait a minute and tap Retry, or select a billing-enabled key in Settings > Secrets.',
     };
   }
   return {
     status: 500,
-    message: `AI request failed: ${raw}`,
+    message: `AI request failed: ${raw.slice(0, 200)}`,
   };
 }
 
@@ -106,7 +165,7 @@ async function startServer() {
 ${langInstruction[language] || langInstruction.hi}
 
 Rules:
-- Use the live farmer context provided below AND live grounded ${selectedTool === 'maps' ? 'Google Maps place/route data' : 'Google Search market/MSP/weather updates'} when relevant.
+- Use the live farmer context provided below AND live grounded ${selectedTool === 'maps' ? 'Google Maps place/route data' : 'Google Search market/MSP/weather updates'} when available.
 - Give a direct, super-simple recommendation in 4-6 short lines suitable for WhatsApp or IVR voice readout:
   1. Direct verdict (Sell today or Store X days, and which specific mandi gives the highest net take-home profit).
   2. Exact net take-home profit after transport & commission vs local mandi, noting the farmer's crop grade.
@@ -118,36 +177,36 @@ Rules:
 Live Mandi & Farm Context (JSON):
 ${JSON.stringify(context ?? {}, null, 2)}`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
-        contents: prompt,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          tools: selectedTool === 'maps' ? [{ googleMaps: {} }] : [{ googleSearch: {} }],
-          ...(selectedTool === 'maps'
-            ? {
-                toolConfig: {
-                  retrievalConfig: {
-                    latLng: { latitude: validLat, longitude: validLng },
-                  },
-                },
-              }
-            : {}),
-        },
-      });
+      const { result: response, attempt } = await runGeminiAttemptPlan(
+        selectedTool,
+        async (attemptItem) => {
+          const r = await ai.models.generateContent({
+            model: attemptItem.model,
+            contents: prompt,
+            config: {
+              systemInstruction,
+              ...buildToolConfig(attemptItem, { latitude: validLat, longitude: validLng }),
+            },
+          });
+          if (!(r.text ?? '').trim()) {
+            throw new Error('EMPTY_RESPONSE');
+          }
+          return r;
+        }
+      );
 
       const reply = (response.text ?? '').trim();
-      if (!reply) {
-        res.status(502).json({ error: 'Empty response from advisory model.' });
-        return;
-      }
-
       const sources = extractGroundingSources(
         response.candidates?.[0]?.groundingMetadata?.groundingChunks
       );
 
-      res.json({ reply, language, groundingUsed: selectedTool, sources });
+      res.json({
+        reply,
+        language,
+        groundingUsed: attempt.tool,
+        modelUsed: attempt.model,
+        sources,
+      });
     } catch (err) {
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
@@ -339,8 +398,10 @@ Estimate realistic mandi gate quality metrics:
         en: 'clear simple English',
       };
 
-      const trimmedMessages = messages.slice(-12);
-      const latestUserMessage = String(trimmedMessages[trimmedMessages.length - 1]?.text ?? '').trim();
+      const { history: normalizedHistory, latestUserMessage } = normalizeChatForGemini(
+        messages,
+        12
+      );
       if (!latestUserMessage) {
         res.status(400).json({ error: 'Latest chat message cannot be empty.' });
         return;
@@ -353,57 +414,43 @@ Estimate realistic mandi gate quality metrics:
       const systemInstruction = `You are MandiMitra AI Assistant, a friendly, super-simple help & agronomy chatbot embedded in the MandiMitra Uttar Pradesh farmer market intelligence app.
 You help farmers with:
 1. Explaining their Net Profit Calculator results, crop quality adjustments, and why one mandi beats another.
-2. Live up-to-date UP market news, weather alerts, and UP Government MSP / e-Kharid scheme rules (using Google Search grounding).
-3. Real nearby mandis, cold storages, Krishi Vigyan Kendras, weighbridges, and driving directions (using Google Maps grounding).
+2. Live up-to-date UP market news, weather alerts, and UP Government MSP / e-Kharid scheme rules (using Google Search grounding when available).
+3. Real nearby mandis, cold storages, Krishi Vigyan Kendras, weighbridges, and driving directions (using Google Maps grounding when available).
 
 Language guidance: Match the language the user writes in (Hindi, Awadhi, Bhojpuri, Hinglish, or English). Default to ${chatLangDefault[language] || chatLangDefault.hi} if ambiguous.
 Keep answers very simple, friendly, and concise (3-6 short lines or numbered steps), grounded in the user's live farm state below:
 ${JSON.stringify(context ?? {}, null, 2)}`;
 
-      // Build prior conversation history for ai.chats.create (excluding the latest user turn)
-      const priorHistory = trimmedMessages
-        .slice(0, -1)
-        .filter((m: { role: string; text: string }) => String(m?.text ?? '').trim().length > 0)
-        .map((m: { role: string; text: string }) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: String(m.text) }],
-        }));
+      const { result: response, attempt } = await runGeminiAttemptPlan(
+        selectedTool,
+        async (attemptItem) => {
+          const chat = ai.chats.create({
+            model: attemptItem.model,
+            history: normalizedHistory,
+            config: {
+              systemInstruction,
+              ...buildToolConfig(attemptItem, { latitude: validLat, longitude: validLng }),
+            },
+          });
+          const r = await chat.sendMessage({ message: latestUserMessage });
+          if (!(r.text ?? '').trim()) {
+            throw new Error('EMPTY_RESPONSE');
+          }
+          return r;
+        }
+      );
 
-      // Ensure history starts with a user turn when non-empty
-      const firstUserIdx = priorHistory.findIndex((item) => item.role === 'user');
-      const normalizedHistory = firstUserIdx >= 0 ? priorHistory.slice(firstUserIdx) : [];
-
-      const chat = ai.chats.create({
-        model: 'gemini-4-hydrogen',
-        history: normalizedHistory,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          tools: selectedTool === 'maps' ? [{ googleMaps: {} }] : [{ googleSearch: {} }],
-          ...(selectedTool === 'maps'
-            ? {
-                toolConfig: {
-                  retrievalConfig: {
-                    latLng: { latitude: validLat, longitude: validLng },
-                  },
-                },
-              }
-            : {}),
-        },
-      });
-
-      const response = await chat.sendMessage({ message: latestUserMessage });
       const reply = (response.text ?? '').trim();
-      if (!reply) {
-        res.status(502).json({ error: 'Empty response from assistant.' });
-        return;
-      }
-
       const sources = extractGroundingSources(
         response.candidates?.[0]?.groundingMetadata?.groundingChunks
       );
 
-      res.json({ reply, groundingUsed: selectedTool, sources });
+      res.json({
+        reply,
+        groundingUsed: attempt.tool,
+        modelUsed: attempt.model,
+        sources,
+      });
     } catch (err) {
       const { status, message } = getErrorStatus(err);
       res.status(status).json({ error: message });
@@ -439,37 +486,30 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
         ? `Find real, verified APMC vegetable/grain mandis and cold storage facilities near ${districtName}, Uttar Pradesh suitable for selling or storing ${cropName}. Give 3-4 short, easy-to-read bullet points in ${langLabel} with exact place names and practical tips.`
         : `Give a short, easy-to-read 3-4 bullet briefing in ${langLabel} for a farmer in ${districtName}, Uttar Pradesh growing ${cropName}: latest UP mandi market trend or MSP news, and current weather/storage precaution.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
-        contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          tools: useMaps ? [{ googleMaps: {} }] : [{ googleSearch: {} }],
-          ...(useMaps
-            ? {
-                toolConfig: {
-                  retrievalConfig: {
-                    latLng: { latitude: validLat, longitude: validLng },
-                  },
-                },
-              }
-            : {}),
-        },
-      });
+      const { result: response, attempt } = await runGeminiAttemptPlan(
+        useMaps ? 'maps' : 'search',
+        async (attemptItem) => {
+          const r = await ai.models.generateContent({
+            model: attemptItem.model,
+            contents: prompt,
+            config: buildToolConfig(attemptItem, { latitude: validLat, longitude: validLng }),
+          });
+          if (!(r.text ?? '').trim()) {
+            throw new Error('EMPTY_RESPONSE');
+          }
+          return r;
+        }
+      );
 
       const summary = (response.text ?? '').trim();
-      if (!summary) {
-        res.status(502).json({ error: 'No live update returned.' });
-        return;
-      }
-
       const sources = extractGroundingSources(
         response.candidates?.[0]?.groundingMetadata?.groundingChunks
       );
 
       res.json({
         summary,
-        groundingUsed: useMaps ? 'maps' : 'search',
+        groundingUsed: attempt.tool,
+        modelUsed: attempt.model,
         sources,
       });
     } catch (err) {
