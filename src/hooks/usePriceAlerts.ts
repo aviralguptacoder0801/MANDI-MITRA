@@ -7,6 +7,7 @@ import {
   type PriceAlertNotification,
   type PriceAlertRule,
 } from '../utils/priceAlerts';
+import { triggerHaptic } from '../utils/haptics';
 import { safeLoadJson, safeSaveJson } from '../utils/storage';
 
 const STORAGE_ALERT_RULES_KEY = 'mandimitra_price_alerts_v1';
@@ -128,6 +129,7 @@ export function usePriceAlerts(language: LanguageCode) {
       setAlertHistory((prev) => [...triggered, ...prev].slice(0, 40));
       showToastNotification(triggered[0]);
       playGentleAlertChime();
+      triggerHaptic('alert');
 
       if (
         typeof window !== 'undefined' &&

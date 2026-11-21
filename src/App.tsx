@@ -25,6 +25,7 @@ import {
   type VehicleTypeId,
 } from './data/upMandis';
 import { usePriceAlerts } from './hooks/usePriceAlerts';
+import { triggerHaptic } from './utils/haptics';
 import {
   findNearestDistrict,
   getDefaultLanguageForDistrict,
@@ -463,7 +464,10 @@ export default function App() {
             <button
               type="button"
               data-testid="back-to-dashboard"
-              onClick={() => setActiveTab('home')}
+              onClick={() => {
+                triggerHaptic('tap');
+                setActiveTab('home');
+              }}
               className="min-h-[48px] px-4 py-2.5 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-950 text-slate-950 text-sm sm:text-base font-bold inline-flex items-center gap-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
             >
               <ArrowLeft className="w-5 h-5 shrink-0 stroke-[2.25]" aria-hidden="true" />

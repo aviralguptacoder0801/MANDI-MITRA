@@ -1,5 +1,6 @@
 import { Globe, Loader2, LocateFixed, MapPin } from 'lucide-react';
 import { UP_DISTRICTS, type DistrictId, type LanguageCode } from '../data/upMandis';
+import { triggerHaptic } from '../utils/haptics';
 import { DISTRICT_GEO, type UiStrings } from '../utils/i18n';
 
 interface RegionLanguageBarProps {
@@ -72,7 +73,10 @@ export function RegionLanguageBar({
 
           <button
             type="button"
-            onClick={onDetectGps}
+            onClick={() => {
+              triggerHaptic('confirm');
+              onDetectGps();
+            }}
             disabled={detectingGps}
             data-testid="use-gps-button"
             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white border border-emerald-300 hover:bg-emerald-100/70 text-xs font-semibold text-emerald-900 transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
@@ -116,7 +120,10 @@ export function RegionLanguageBar({
                     key={btn.id}
                     type="button"
                     data-testid={`lang-btn-${btn.id}`}
-                    onClick={() => onSelectLanguage(btn.id)}
+                    onClick={() => {
+                      triggerHaptic('tap');
+                      onSelectLanguage(btn.id);
+                    }}
                     aria-pressed={active}
                     className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap ${
                       active

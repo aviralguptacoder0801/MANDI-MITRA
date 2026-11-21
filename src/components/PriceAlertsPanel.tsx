@@ -17,6 +17,7 @@ import {
   type CropId,
   type LanguageCode,
 } from '../data/upMandis';
+import { triggerHaptic } from '../utils/haptics';
 import type { UiStrings } from '../utils/i18n';
 import { formatINR } from '../utils/mandiEngine';
 import type {
@@ -132,8 +133,10 @@ export function PriceAlertsPanel({
   function handleCreateRule(e: FormEvent) {
     e.preventDefault();
     if (selectedMandiIds.length === 0 || !Number.isFinite(thresholdInput) || thresholdInput < 100) {
+      triggerHaptic('warning');
       return;
     }
+    triggerHaptic('confirm');
     onAddRule({
       cropId: formCropId,
       mandiIds: selectedMandiIds,
@@ -203,7 +206,10 @@ export function PriceAlertsPanel({
               {notificationPermission === 'default' && (
                 <button
                   type="button"
-                  onClick={onRequestBrowserPermission}
+                  onClick={() => {
+                    triggerHaptic('tap');
+                    onRequestBrowserPermission();
+                  }}
                   data-testid="enable-browser-notif-btn"
                   className="px-3.5 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-colors whitespace-nowrap"
                 >
@@ -212,7 +218,10 @@ export function PriceAlertsPanel({
               )}
               <button
                 type="button"
-                onClick={onCheckRatesNow}
+                onClick={() => {
+                  triggerHaptic('tap');
+                  onCheckRatesNow();
+                }}
                 data-testid="check-rates-now-btn"
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-300 hover:border-slate-900 text-slate-900 text-xs font-semibold transition-colors whitespace-nowrap"
               >
@@ -221,7 +230,10 @@ export function PriceAlertsPanel({
               </button>
               <button
                 type="button"
-                onClick={() => onSimulatePriceSurge(formCropId, 100)}
+                onClick={() => {
+                  triggerHaptic('tap');
+                  onSimulatePriceSurge(formCropId, 100);
+                }}
                 data-testid="simulate-price-surge-btn"
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-100 border border-amber-300 hover:bg-amber-200 text-amber-950 text-xs font-bold transition-colors whitespace-nowrap"
               >
@@ -454,7 +466,10 @@ export function PriceAlertsPanel({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onDeleteRule(rule.id)}
+                          onClick={() => {
+                            triggerHaptic('warning');
+                            onDeleteRule(rule.id);
+                          }}
                           aria-label={t.alerts.deleteRule}
                           className="p-2 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50"
                         >

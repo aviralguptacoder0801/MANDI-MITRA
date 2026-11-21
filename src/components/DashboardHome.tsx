@@ -15,6 +15,7 @@ import {
   type DistrictId,
   type LanguageCode,
 } from '../data/upMandis';
+import { triggerHaptic } from '../utils/haptics';
 import type { UiStrings } from '../utils/i18n';
 import {
   formatINR,
@@ -211,7 +212,10 @@ export function DashboardHome({
                   type="button"
                   data-testid={`dash-crop-${id}`}
                   aria-pressed={active}
-                  onClick={() => onChangeCrop(id)}
+                  onClick={() => {
+                    triggerHaptic('tap');
+                    onChangeCrop(id);
+                  }}
                   className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-xl text-sm font-bold transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 ${
                     active
                       ? 'bg-emerald-400 text-slate-950'
@@ -227,7 +231,10 @@ export function DashboardHome({
           <button
             type="button"
             data-testid="dashboard-alerts-btn"
-            onClick={onOpenAlerts}
+            onClick={() => {
+              triggerHaptic('tap');
+              onOpenAlerts();
+            }}
             className="min-h-[44px] px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-sm font-bold inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
           >
             <BellRing className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -260,7 +267,10 @@ export function DashboardHome({
                 key={card.id}
                 type="button"
                 data-testid={`dash-card-${card.id}`}
-                onClick={() => onSelectTab(card.id)}
+                onClick={() => {
+                  triggerHaptic('tap');
+                  onSelectTab(card.id);
+                }}
                 className="group text-left bg-white border-2 border-slate-300 hover:border-slate-950 active:scale-[0.99] rounded-2xl p-5 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5 min-h-[184px] sm:min-h-[196px] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
               >
                 {/* Top Row: High-Contrast Solid Icon + Live Key Value */}

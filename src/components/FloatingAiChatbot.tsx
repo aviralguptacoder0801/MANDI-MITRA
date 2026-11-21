@@ -20,6 +20,7 @@ import {
   type LanguageCode,
 } from '../data/upMandis';
 import type { GroundingMode, GroundingSource } from '../utils/grounding';
+import { triggerHaptic } from '../utils/haptics';
 import { DISTRICT_GEO, type UiStrings } from '../utils/i18n';
 import {
   formatINR,
@@ -289,6 +290,9 @@ export function FloatingAiChatbot({
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (input.trim()) {
+      triggerHaptic('confirm');
+    }
     sendMessage(input);
   }
 
@@ -542,7 +546,10 @@ export function FloatingAiChatbot({
       {/* Floating Corner Icon Trigger */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          triggerHaptic('tap');
+          setIsOpen((prev) => !prev);
+        }}
         aria-label={isOpen ? t.chatbot.closeAria : t.chatbot.openAria}
         aria-expanded={isOpen}
         data-testid="floating-ai-chat-trigger"

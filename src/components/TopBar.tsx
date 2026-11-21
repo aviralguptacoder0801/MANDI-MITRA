@@ -1,5 +1,6 @@
 import { Bell, Menu, Mic, Sprout, X } from 'lucide-react';
 import { useState } from 'react';
+import { triggerHaptic } from '../utils/haptics';
 import type { UiStrings } from '../utils/i18n';
 
 export type WorkspaceTab =
@@ -47,6 +48,7 @@ export function TopBar({
   ];
 
   const handleSelect = (tab: WorkspaceTab) => {
+    triggerHaptic('tap');
     onSelectTab(tab);
     setMobileMenuOpen(false);
   };
@@ -102,7 +104,10 @@ export function TopBar({
           <button
             type="button"
             data-testid="topbar-alerts-btn"
-            onClick={onOpenAlerts}
+            onClick={() => {
+              triggerHaptic('tap');
+              onOpenAlerts();
+            }}
             aria-label={t.alerts.buttonLabel}
             title={t.alerts.buttonLabel}
             className="relative inline-flex items-center justify-center gap-1.5 h-10 sm:h-9 px-2.5 sm:px-3 rounded-lg border border-slate-300 bg-white hover:bg-amber-50 hover:border-amber-400 text-slate-900 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"

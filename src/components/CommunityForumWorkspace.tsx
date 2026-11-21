@@ -30,6 +30,7 @@ import {
   screenContent,
   type ModerationAction,
 } from '../utils/moderation';
+import { triggerHaptic } from '../utils/haptics';
 import type { UiStrings } from '../utils/i18n';
 
 const FORUM_CATEGORIES: ('All' | ForumCategory)[] = [
@@ -134,16 +135,19 @@ export function CommunityForumWorkspace({
     setPostError(null);
 
     if (!postAuthor.trim() || !postTitle.trim() || !postBody.trim()) {
+      triggerHaptic('warning');
       setPostError(t.community.errFillRequired);
       return;
     }
 
     const screen = screenContent(`${postTitle} ${postBody}`);
     if (screen.severity === 'blocked') {
+      triggerHaptic('warning');
       setPostError(`${t.community.errModGuardPrefix} ${screen.reasons.join(' ')}`);
       return;
     }
 
+    triggerHaptic('confirm');
     onCreatePost({
       title: postTitle.trim(),
       body: postBody.trim(),
@@ -168,6 +172,7 @@ export function CommunityForumWorkspace({
     const cleanAuthor = draft.author.trim() || (isHindiFamily ? 'यूपी किसान' : 'UP Farmer');
 
     if (!cleanBody) {
+      triggerHaptic('warning');
       setCommentDrafts((prev) => ({
         ...prev,
         [postId]: { ...draft, error: t.community.errEmptyComment },
@@ -177,6 +182,7 @@ export function CommunityForumWorkspace({
 
     const screen = screenContent(cleanBody);
     if (screen.severity === 'blocked') {
+      triggerHaptic('warning');
       setCommentDrafts((prev) => ({
         ...prev,
         [postId]: {
@@ -187,6 +193,7 @@ export function CommunityForumWorkspace({
       return;
     }
 
+    triggerHaptic('confirm');
     onAddComment(postId, cleanAuthor, postDistrict, cleanBody);
     setCommentDrafts((prev) => ({
       ...prev,
@@ -251,7 +258,10 @@ export function CommunityForumWorkspace({
 
           <button
             type="button"
-            onClick={() => setShowComposer((prev) => !prev)}
+            onClick={() => {
+              triggerHaptic('tap');
+              setShowComposer((prev) => !prev);
+            }}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-lg transition-colors whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />

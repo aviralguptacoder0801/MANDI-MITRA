@@ -33,6 +33,7 @@ import {
   type VehicleTypeId,
 } from '../data/upMandis';
 import type { GroundingSource } from '../utils/grounding';
+import { triggerHaptic } from '../utils/haptics';
 import type { UiStrings } from '../utils/i18n';
 import {
   calculateGradeAdjustment,
@@ -128,6 +129,7 @@ export function ProfitGradeWorkspace({
         : 'normal';
 
   const applyQualityPreset = (preset: QualityPresetId) => {
+    triggerHaptic('tap');
     if (preset === 'good') {
       onChangeQuality({
         ...quality,
@@ -238,6 +240,7 @@ export function ProfitGradeWorkspace({
   }
 
   async function handleInspectSampleImage() {
+    triggerHaptic('confirm');
     setShowPhotoInspector(true);
     setPreviewSrc(crop.sampleImage);
     setPhotoError(null);

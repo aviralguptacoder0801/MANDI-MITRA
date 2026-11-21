@@ -22,6 +22,7 @@ import {
   type LanguageCode,
 } from '../data/upMandis';
 import type { GroundingSource } from '../utils/grounding';
+import { triggerHaptic } from '../utils/haptics';
 import { DISTRICT_GEO, type UiStrings } from '../utils/i18n';
 import {
   formatINR,
@@ -251,10 +252,14 @@ export function VoiceWhatsAppWorkspace({
 
   function handleFormSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inputText.trim()) {
+      triggerHaptic('confirm');
+    }
     sendFarmerQuery(inputText);
   }
 
   async function handlePlayAudio(msg: WhatsAppMessage) {
+    triggerHaptic('tap');
     // Stop currently playing audio
     if (playingMsgId === msg.id) {
       activeAudioRef.current?.pause();
@@ -309,6 +314,7 @@ export function VoiceWhatsAppWorkspace({
   }
 
   async function toggleVoiceRecording() {
+    triggerHaptic('confirm');
     if (recording) {
       mediaRecorderRef.current?.stop();
       setRecording(false);
@@ -400,7 +406,10 @@ export function VoiceWhatsAppWorkspace({
             <button
               key={l.id}
               type="button"
-              onClick={() => onChangeLanguage(l.id)}
+              onClick={() => {
+                triggerHaptic('tap');
+                onChangeLanguage(l.id);
+              }}
               aria-pressed={language === l.id}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap ${
                 language === l.id

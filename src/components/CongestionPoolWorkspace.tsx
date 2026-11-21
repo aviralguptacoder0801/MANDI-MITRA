@@ -35,6 +35,7 @@ import {
   formatINR,
   type RankedMandiProfit,
 } from '../utils/mandiEngine';
+import { triggerHaptic } from '../utils/haptics';
 import type { UiStrings } from '../utils/i18n';
 
 interface CongestionPoolWorkspaceProps {
@@ -97,10 +98,12 @@ export function CongestionPoolWorkspace({
   function handleCreateSubmit(e: FormEvent) {
     e.preventDefault();
     if (!farmerName.trim() || !villageName.trim()) {
+      triggerHaptic('warning');
       setFormError('Please enter your name and village/block.');
       return;
     }
     if (farmerContributionQtl < 1 || farmerContributionQtl >= truckCapQtl) {
+      triggerHaptic('warning');
       setFormError('Your lot must be at least 1 Qtl and less than total truck capacity.');
       return;
     }
@@ -109,6 +112,7 @@ export function CongestionPoolWorkspace({
     const distKm = DISTRICT_DISTANCE_KM[originDistrict]?.[destMandi.district] ?? 95;
     const estCost = Math.round(1600 + distKm * 36);
 
+    triggerHaptic('confirm');
     onCreatePool({
       cropId,
       originDistrict,
@@ -150,7 +154,11 @@ export function CongestionPoolWorkspace({
 
         <button
           type="button"
-          onClick={() => setShowCreateModal(true)}
+          data-testid="start-pool-btn"
+          onClick={() => {
+            triggerHaptic('tap');
+            setShowCreateModal(true);
+          }}
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
@@ -387,8 +395,12 @@ export function CongestionPoolWorkspace({
                     ) : (
                       <button
                         type="button"
+                        data-testid={`join-pool-${pool.id}`}
                         disabled={isFull}
-                        onClick={() => onJoinPool(pool.id, bookableQty)}
+                        onClick={() => {
+                          triggerHaptic('confirm');
+                          onJoinPool(pool.id, bookableQty);
+                        }}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 rounded-lg transition-colors whitespace-nowrap"
                       >
                         <Truck className="w-3.5 h-3.5" aria-hidden="true" />
