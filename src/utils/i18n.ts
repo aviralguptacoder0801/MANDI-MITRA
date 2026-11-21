@@ -229,13 +229,97 @@ export interface UiStrings {
     tapToAsk: string;
   };
   community: {
+    eyebrow: string;
     title: string;
     subtitle: string;
     newPost: string;
+    closeComposer: string;
     modDesk: string;
     helpful: string;
+    commentSingular: string;
     comments: string;
     report: string;
+    verifiedBadge: string;
+    lockedBadge: string;
+    hiddenBadge: string;
+    searchPlaceholder: string;
+    sortNewest: string;
+    sortHelpful: string;
+    emptyState: string;
+    resetFilters: string;
+    noCommentsYet: string;
+    commentsLockedNotice: string;
+    yourNamePlaceholder: string;
+    replyPlaceholder: string;
+    replyBtn: string;
+    composerTitle: string;
+    composerGuardNote: string;
+    fieldName: string;
+    fieldDistrict: string;
+    fieldCategory: string;
+    fieldCrop: string;
+    generalFarming: string;
+    fieldHeadline: string;
+    fieldHeadlinePlaceholder: string;
+    fieldDetails: string;
+    fieldDetailsPlaceholder: string;
+    cancelBtn: string;
+    publishBtn: string;
+    errFillRequired: string;
+    errEmptyComment: string;
+    errModGuardPrefix: string;
+    modQueueTitle: string;
+    modQueueSubtitle: string;
+    modAllClear: string;
+    modApprove: string;
+    modRestore: string;
+    modRemoveHide: string;
+    modPin: string;
+    modUnpin: string;
+    modLock: string;
+    modUnlock: string;
+    modHide: string;
+    reportModalTitle: string;
+    reportFlagging: string;
+    reportReasonLegend: string;
+    reportSubmitBtn: string;
+    reportReasons: [string, string, string, string];
+    categories: {
+      All: string;
+      'Market Rates': string;
+      'Crop Care': string;
+      'Storage & Cold Store': string;
+      'MSP & Schemes': string;
+      Transport: string;
+    };
+  };
+  alerts: {
+    buttonLabel: string;
+    modalTitle: string;
+    modalSubtitle: string;
+    browserNotifEnable: string;
+    browserNotifGranted: string;
+    browserNotifDenied: string;
+    browserNotifUnsupported: string;
+    createTitle: string;
+    cropLabel: string;
+    directionLabel: string;
+    aboveLabel: string;
+    belowLabel: string;
+    thresholdLabel: string;
+    preferredMandisLabel: string;
+    saveAlertBtn: string;
+    checkLiveNowBtn: string;
+    simulateSurgeBtn: string;
+    activeRulesTitle: string;
+    noRulesText: string;
+    historyTitle: string;
+    noHistoryText: string;
+    markAllRead: string;
+    clearHistory: string;
+    deleteRule: string;
+    currentRateLabel: string;
+    dismissToast: string;
   };
   map: {
     title: string;
@@ -253,6 +337,16 @@ export interface UiStrings {
     placeholder: string;
     openAria: string;
     closeAria: string;
+    liveDataLabel: string;
+    autoLabel: string;
+    searchLabel: string;
+    mapsLabel: string;
+    thinkingLabel: string;
+    checkingMapsLabel: string;
+    retryBtn: string;
+    webSourcesLabel: string;
+    mapsSourcesLabel: string;
+    timeoutError: string;
   };
 }
 
@@ -368,13 +462,102 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       tapToAsk: 'सीधे पूछने के लिए दबाएं',
     },
     community: {
+      eyebrow: 'किसान चौपाल · यूपी के किसानों की भरोसेमंद चर्चा और ठगी-सुरक्षा',
       title: 'किसान चौपाल — आपसी बातचीत व सलाह',
       subtitle: 'किसान भाइयों से मंडी भाव, खेती और भंडारण के अनुभव बांटें। ठगी रोकने के लिए मॉडरेशन सक्रिय है।',
       newPost: 'नई पोस्ट लिखें',
+      closeComposer: 'बंद करें',
       modDesk: 'मॉडरेटर जांच',
       helpful: 'उपयोगी',
+      commentSingular: 'टिप्पणी',
       comments: 'टिप्पणियां',
       report: 'रिपोर्ट करें',
+      verifiedBadge: 'सत्यापित सलाह',
+      lockedBadge: 'टिप्पणी बंद',
+      hiddenBadge: 'मॉडरेटर द्वारा छिपाई गई',
+      searchPlaceholder: 'फसल, मंडी या विषय खोजें...',
+      sortNewest: 'सबसे नई',
+      sortHelpful: 'सबसे उपयोगी',
+      emptyState: 'आपकी खोज या श्रेणी से मेल खाने वाली कोई चर्चा नहीं मिली।',
+      resetFilters: 'फिल्टर हटाएं',
+      noCommentsYet: 'अभी कोई टिप्पणी नहीं है। अपना अनुभव या सवाल लिखें।',
+      commentsLockedNotice: 'इस चर्चा पर मॉडरेटर ने नई टिप्पणियां बंद कर दी हैं।',
+      yourNamePlaceholder: 'आपका नाम',
+      replyPlaceholder: 'अपनी सलाह या मंडी का ताजा हाल लिखें...',
+      replyBtn: 'जवाब भेजें',
+      composerTitle: 'किसान चौपाल पर नई चर्चा शुरू करें',
+      composerGuardNote: 'स्वचालित ठगी-रोकथाम और शालीन भाषा जांच सक्रिय है',
+      fieldName: 'आपका नाम',
+      fieldDistrict: 'जिला',
+      fieldCategory: 'विषय चुनें',
+      fieldCrop: 'संबंधित फसल',
+      generalFarming: 'सामान्य खेती',
+      fieldHeadline: 'शीर्षक',
+      fieldHeadlinePlaceholder: 'जैसे: सिकंदरा मंडी आगरा में आज चिप्सोना आलू का सुबह का भाव',
+      fieldDetails: 'पूरा विवरण (मंडी भाव, नमी का अनुभव, भंडारण या खेती की टिप)',
+      fieldDetailsPlaceholder: 'किसान भाइयों के काम आने वाली सही और सच्ची जानकारी लिखें...',
+      cancelBtn: 'रद्द करें',
+      publishBtn: 'पोस्ट प्रकाशित करें',
+      errFillRequired: 'कृपया अपना नाम, शीर्षक और पूरा विवरण भरें।',
+      errEmptyComment: 'कृपया पोस्ट करने से पहले अपनी टिप्पणी लिखें।',
+      errModGuardPrefix: 'मॉडरेशन सुरक्षा ने यह संदेश रोका:',
+      modQueueTitle: 'सामुदायिक मॉडरेशन जांच सूची',
+      modQueueSubtitle: 'संदिग्ध ठगी पोस्ट और किसान रिपोर्ट की समीक्षा करें। आप नीचे किसी भी पोस्ट को पिन, लॉक या छिपा सकते हैं।',
+      modAllClear: 'सब ठीक है — जांच सूची में कोई संदिग्ध या रिपोर्ट की गई पोस्ट नहीं है।',
+      modApprove: 'स्वीकृत करें व दिखाएं',
+      modRestore: 'वापस दिखाएं',
+      modRemoveHide: 'हटाएं / छिपाएं',
+      modPin: 'पिन करें',
+      modUnpin: 'पिन हटाएं',
+      modLock: 'लॉक करें',
+      modUnlock: 'अनलॉक करें',
+      modHide: 'छिपाएं',
+      reportModalTitle: 'मॉडरेटर को रिपोर्ट करें',
+      reportFlagging: 'रिपोर्ट किया जा रहा है:',
+      reportReasonLegend: 'रिपोर्ट करने का कारण चुनें',
+      reportSubmitBtn: 'रिपोर्ट भेजें',
+      reportReasons: [
+        'बिचौलिया ठगी / एडवांस फीस या OTP मांगना',
+        'अभद्र या अपमानजनक भाषा',
+        'गलत मंडी भाव या भ्रामक MSP जानकारी',
+        'स्पैम या अनचाहा प्रचार',
+      ],
+      categories: {
+        All: 'सभी',
+        'Market Rates': 'मंडी भाव',
+        'Crop Care': 'फसल देखभाल',
+        'Storage & Cold Store': 'भंडारण व कोल्ड स्टोर',
+        'MSP & Schemes': 'MSP और योजनाएं',
+        Transport: 'परिवहन / ट्रक',
+      },
+    },
+    alerts: {
+      buttonLabel: 'भाव अलर्ट',
+      modalTitle: 'मंडी भाव नोटिफिकेशन अलर्ट',
+      modalSubtitle: 'अपनी पसंदीदा मंडियों में तय भाव पार होते ही तुरंत स्थानीय अलर्ट पाएं।',
+      browserNotifEnable: 'फोन/ब्राउज़र अलर्ट चालू करें',
+      browserNotifGranted: 'ब्राउज़र नोटिफिकेशन चालू है',
+      browserNotifDenied: 'ब्राउज़र नोटिफिकेशन बंद है (ऐप के अंदर अलर्ट दिखेंगे)',
+      browserNotifUnsupported: 'ऐप के अंदर तुरंत अलर्ट सक्रिय हैं',
+      createTitle: 'नया भाव अलर्ट बनाएं',
+      cropLabel: 'फसल चुनें',
+      directionLabel: 'कब अलर्ट मिले?',
+      aboveLabel: 'भाव ऊपर जाए (≥)',
+      belowLabel: 'भाव नीचे आए (≤)',
+      thresholdLabel: 'लक्ष्य भाव (₹ / क्विंटल)',
+      preferredMandisLabel: 'पसंदीदा मंडियां चुनें',
+      saveAlertBtn: 'अलर्ट सेव करें',
+      checkLiveNowBtn: 'ताजा भाव अभी जांचें',
+      simulateSurgeBtn: 'भाव बढ़ोतरी (+₹100) जांचें',
+      activeRulesTitle: 'सक्रिय भाव अलर्ट नियम',
+      noRulesText: 'अभी कोई भाव अलर्ट नहीं बना है। ऊपर से अपनी पसंदीदा मंडी का लक्ष्य भाव सेट करें।',
+      historyTitle: 'आए हुए नोटिफिकेशन',
+      noHistoryText: 'अभी कोई अलर्ट ट्रिगर नहीं हुआ है। लक्ष्य भाव पार होते ही यहाँ सूचना दिखेगी।',
+      markAllRead: 'सभी पढ़ा हुआ चिह्नित करें',
+      clearHistory: 'साफ करें',
+      deleteRule: 'हटाएं',
+      currentRateLabel: 'मौजूदा भाव',
+      dismissToast: 'बंद करें',
     },
     map: {
       title: 'मंडी नक्शा, रास्ता और नज़दीकी कोल्ड स्टोर',
@@ -392,6 +575,16 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       placeholder: 'कोई भी सवाल यहाँ लिखें...',
       openAria: 'मंडीमित्र AI मददगार खोलें',
       closeAria: 'मंडीमित्र AI मददगार बंद करें',
+      liveDataLabel: 'लाइव डेटा:',
+      autoLabel: 'ऑटो',
+      searchLabel: 'सर्च',
+      mapsLabel: 'नक्शा',
+      thinkingLabel: 'मंडी डेटा जांच रहे हैं...',
+      checkingMapsLabel: 'Google Maps जांच रहे हैं...',
+      retryBtn: 'फिर कोशिश करें',
+      webSourcesLabel: 'वेब स्रोत:',
+      mapsSourcesLabel: 'Google Maps स्थान:',
+      timeoutError: 'जवाब आने में अधिक समय लग गया। कृपया दोबारा कोशिश करें।',
     },
   },
   awadhi: {
@@ -505,13 +698,102 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       tapToAsk: 'सीधे पूछे खातिर दबावै',
     },
     community: {
+      eyebrow: 'किसान चौपाल · यूपी के किसानन के भरोसेमंद बातचीत अउर ठगी से बचाव',
       title: 'किसान चौपाल — आपस के बातचीत',
       subtitle: 'किसान भाइयन से मंडी भाव अउर खेती के बात बांटौ। ठगी रोके खातिर मॉडरेशन चालू बा।',
       newPost: 'नवा बात लिखौ',
+      closeComposer: 'बंद करौ',
       modDesk: 'मॉडरेटर जांच',
       helpful: 'काम के बात',
+      commentSingular: 'जवाब',
       comments: 'जवाब',
       report: 'शिकायत करौ',
+      verifiedBadge: 'सत्यापित सलाह',
+      lockedBadge: 'जवाब बंद बा',
+      hiddenBadge: 'मॉडरेटर द्वारा छिपावल गा',
+      searchPlaceholder: 'फसल, मंडी या विषय खोजौ...',
+      sortNewest: 'सबसे नवा',
+      sortHelpful: 'सबसे काम के',
+      emptyState: 'तोहरे खोज से मिलत कउनो पोस्ट नाहीं मिलल।',
+      resetFilters: 'फिल्टर हटावौ',
+      noCommentsYet: 'अभी कउनो जवाब नाहीं बा। आपन अनुभव लिखौ।',
+      commentsLockedNotice: 'ई चर्चा पर मॉडरेटर नवा जवाब बंद कइ दिहिन हन।',
+      yourNamePlaceholder: 'तोहार नाम',
+      replyPlaceholder: 'आपन जवाब या मंडी के हाल लिखौ...',
+      replyBtn: 'जवाब भेजौ',
+      composerTitle: 'किसान चौपाल पर नवा चर्चा शुरू करौ',
+      composerGuardNote: 'ठगी रोके अउर सही भाषा के जांच चालू बा',
+      fieldName: 'तोहार नाम',
+      fieldDistrict: 'जिला',
+      fieldCategory: 'विषय चुनौ',
+      fieldCrop: 'फसल',
+      generalFarming: 'साधारण खेती',
+      fieldHeadline: 'शीर्षक',
+      fieldHeadlinePlaceholder: 'जैसे: दुबग्गा मंडी मा आज सुबह के आलू के भाव',
+      fieldDetails: 'पूरी बात (मंडी भाव, नमी, भंडारण या खेती के सलाह)',
+      fieldDetailsPlaceholder: 'किसान भाइयन खातिर सच्ची अउर काम के बात लिखौ...',
+      cancelBtn: 'रद्द करौ',
+      publishBtn: 'पोस्ट डालौ',
+      errFillRequired: 'कृपया आपन नाम, शीर्षक अउर पूरी बात लिखौ।',
+      errEmptyComment: 'भेजे से पहिले कुछ लिखौ।',
+      errModGuardPrefix: 'मॉडरेशन सुरक्षा ई बात रोक दिहिस:',
+      modQueueTitle: 'मॉडरेशन जांच सूची',
+      modQueueSubtitle: 'संदिग्ध ठगी पोस्ट अउर शिकायत देखौ। नीचे से कउनो पोस्ट पिन, लॉक या छिपाय सकत हौ।',
+      modAllClear: 'सब ठीक बा — कउनो संदिग्ध पोस्ट बाकी नाहीं बा।',
+      modApprove: 'पास करौ व दिखावौ',
+      modRestore: 'फिर से दिखावौ',
+      modRemoveHide: 'हटावौ / छिपावौ',
+      modPin: 'पिन करौ',
+      modUnpin: 'पिन हटावौ',
+      modLock: 'लॉक करौ',
+      modUnlock: 'खोलौ',
+      modHide: 'छिपावौ',
+      reportModalTitle: 'मॉडरेटर से शिकायत करौ',
+      reportFlagging: 'शिकायत विषय:',
+      reportReasonLegend: 'शिकायत के कारण चुनौ',
+      reportSubmitBtn: 'शिकायत भेजौ',
+      reportReasons: [
+        'बिचौलिया ठगी / एडवांस पैसा या OTP मांगब',
+        'गलत या खराब भाषा',
+        'झूठा मंडी भाव या गलत MSP खबर',
+        'फालतू प्रचार / स्पैम',
+      ],
+      categories: {
+        All: 'सब',
+        'Market Rates': 'मंडी भाव',
+        'Crop Care': 'फसल देखभाल',
+        'Storage & Cold Store': 'कोल्ड स्टोर व भंडारण',
+        'MSP & Schemes': 'MSP अउर योजना',
+        Transport: 'ट्रक / भाड़ा',
+      },
+    },
+    alerts: {
+      buttonLabel: 'भाव अलर्ट',
+      modalTitle: 'मंडी भाव नोटिफिकेशन अलर्ट',
+      modalSubtitle: 'आपन पसंद के मंडी मा तय दाम पार होइत ही तुरंत सूचना पावौ।',
+      browserNotifEnable: 'फोन/ब्राउज़र अलर्ट चालू करौ',
+      browserNotifGranted: 'ब्राउज़र नोटिफिकेशन चालू बा',
+      browserNotifDenied: 'ब्राउज़र अलर्ट बंद बा (ऐप मा सूचना दिखेगी)',
+      browserNotifUnsupported: 'ऐप के अंदर तुरंत अलर्ट चालू बा',
+      createTitle: 'नवा भाव अलर्ट बनावौ',
+      cropLabel: 'फसल चुनौ',
+      directionLabel: 'कब सूचना मिलै?',
+      aboveLabel: 'भाव ऊपर जाय (≥)',
+      belowLabel: 'भाव नीचे आवै (≤)',
+      thresholdLabel: 'लक्ष्य दाम (₹ / क्विंटल)',
+      preferredMandisLabel: 'पसंदीदा मंडी चुनौ',
+      saveAlertBtn: 'अलर्ट सेव करौ',
+      checkLiveNowBtn: 'ताजा भाव जांचौ',
+      simulateSurgeBtn: 'भाव बढ़त (+₹100) जांचौ',
+      activeRulesTitle: 'चालू भाव अलर्ट नियम',
+      noRulesText: 'अभी कउनो अलर्ट नाहीं बना बा। ऊपर से आपन मंडी के लक्ष्य भाव सेट करौ।',
+      historyTitle: 'आइल सूचनाएं',
+      noHistoryText: 'अभी कउनो अलर्ट नाहीं आइल बा। भाव पार होइत ही यहाँ दिखै लागी।',
+      markAllRead: 'सब पढ़ लिहिन',
+      clearHistory: 'साफ करौ',
+      deleteRule: 'हटावौ',
+      currentRateLabel: 'मौजूदा भाव',
+      dismissToast: 'बंद करौ',
     },
     map: {
       title: 'मंडी के नक्शा, रास्ता अउर पास के कोल्ड स्टोर',
@@ -529,6 +811,16 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       placeholder: 'कउनो सवाल यहाँ लिखौ...',
       openAria: 'मंडीमित्र AI मददगार खोलौ',
       closeAria: 'मंडीमित्र AI मददगार बंद करौ',
+      liveDataLabel: 'लाइव डेटा:',
+      autoLabel: 'ऑटो',
+      searchLabel: 'सर्च',
+      mapsLabel: 'नक्शा',
+      thinkingLabel: 'मंडी डेटा जांचत हन...',
+      checkingMapsLabel: 'Google Maps जांचत हन...',
+      retryBtn: 'फिर कोशिश करौ',
+      webSourcesLabel: 'वेब स्रोत:',
+      mapsSourcesLabel: 'Google Maps जगह:',
+      timeoutError: 'जवाब मा देरी भइल। कृपया फिर से कोशिश करौ।',
     },
   },
   bhojpuri: {
@@ -642,13 +934,102 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       tapToAsk: 'सीधे पूछे खातिर दबाईं',
     },
     community: {
+      eyebrow: 'किसान चौपाल · यूपी के किसान भाई लोग के भरोसेमंद चर्चा आ ठगी से बचाव',
       title: 'किसान चौपाल — आपसी बातचीत',
       subtitle: 'किसान भाई लोग से मंडी भाव आ खेती के अनुभव बांटीं। ठगी रोके खातिर मॉडरेशन चालू बा।',
       newPost: 'नया पोस्ट लिखीं',
+      closeComposer: 'बंद करीं',
       modDesk: 'मॉडरेटर जांच',
       helpful: 'काम के बात',
+      commentSingular: 'जवाब',
       comments: 'जवाब',
       report: 'रिपोर्ट करीं',
+      verifiedBadge: 'सत्यापित सलाह',
+      lockedBadge: 'जवाब बंद बा',
+      hiddenBadge: 'मॉडरेटर द्वारा छिपावल गइल',
+      searchPlaceholder: 'फसल, मंडी भा विषय खोजीं...',
+      sortNewest: 'सबसे नया',
+      sortHelpful: 'सबसे उपयोगी',
+      emptyState: 'राउर खोज से मिलत कवनो चर्चा ना मिलल।',
+      resetFilters: 'फिल्टर हटाईं',
+      noCommentsYet: 'अभी कवनो जवाब नइखे। आपन अनुभव भा सवाल लिखीं।',
+      commentsLockedNotice: 'एह चर्चा प मॉडरेटर नया जवाब बंद क देले बाड़ें।',
+      yourNamePlaceholder: 'राउर नाम',
+      replyPlaceholder: 'आपन सलाह भा मंडी के ताजा हाल लिखीं...',
+      replyBtn: 'जवाब भेजीं',
+      composerTitle: 'किसान चौपाल प नया चर्चा शुरू करीं',
+      composerGuardNote: 'ठगी रोकथाम आ सही भाषा जांच चालू बा',
+      fieldName: 'राउर नाम',
+      fieldDistrict: 'जिला',
+      fieldCategory: 'विषय चुनीं',
+      fieldCrop: 'संबंधित फसल',
+      generalFarming: 'सामान्य खेती',
+      fieldHeadline: 'शीर्षक',
+      fieldHeadlinePlaceholder: 'जइसे: वाराणसी पहड़िया मंडी में आज सुबह के प्याज भाव',
+      fieldDetails: 'पूरा जानकारी (मंडी भाव, नमी, भंडारण भा खेती के सलाह)',
+      fieldDetailsPlaceholder: 'किसान भाई लोग खातिर सही आ सच्चा जानकारी लिखीं...',
+      cancelBtn: 'रद्द करीं',
+      publishBtn: 'पोस्ट डालीं',
+      errFillRequired: 'कृपया आपन नाम, शीर्षक आ पूरा जानकारी भरीं।',
+      errEmptyComment: 'भेजे से पहिले कुछ लिखीं।',
+      errModGuardPrefix: 'मॉडरेशन सुरक्षा ई संदेश रोक देहलस:',
+      modQueueTitle: 'मॉडरेशन जांच सूची',
+      modQueueSubtitle: 'संदिग्ध ठगी पोस्ट आ किसान रिपोर्ट के जांच करीं। नीचे से कवनो पोस्ट पिन, लॉक भा छिपा सकीले।',
+      modAllClear: 'सब ठीक बा — जांच सूची में कवनो संदिग्ध पोस्ट नइखे।',
+      modApprove: 'पास करीं आ देखाईं',
+      modRestore: 'फिर से देखाईं',
+      modRemoveHide: 'हटाईं / छिपाईं',
+      modPin: 'पिन करीं',
+      modUnpin: 'पिन हटाईं',
+      modLock: 'लॉक करीं',
+      modUnlock: 'खोलीं',
+      modHide: 'छिपाईं',
+      reportModalTitle: 'मॉडरेटर के रिपोर्ट करीं',
+      reportFlagging: 'रिपोर्ट विषय:',
+      reportReasonLegend: 'रिपोर्ट करे के कारण चुनीं',
+      reportSubmitBtn: 'रिपोर्ट भेजीं',
+      reportReasons: [
+        'बिचौलिया ठगी / एडवांस पइसा भा OTP मांगल',
+        'खराब भा अपमानजनक भाषा',
+        'गलत मंडी भाव भा झूठा MSP जानकारी',
+        'फालतू प्रचार / स्पैम',
+      ],
+      categories: {
+        All: 'सब',
+        'Market Rates': 'मंडी भाव',
+        'Crop Care': 'फसल देखभाल',
+        'Storage & Cold Store': 'कोल्ड स्टोर आ भंडारण',
+        'MSP & Schemes': 'MSP आ योजना',
+        Transport: 'ट्रक / भाड़ा',
+      },
+    },
+    alerts: {
+      buttonLabel: 'भाव अलर्ट',
+      modalTitle: 'मंडी भाव नोटिफिकेशन अलर्ट',
+      modalSubtitle: 'राउर पसंद के मंडी में तय भाव पार होखते ही तुरंत अलर्ट पाईं।',
+      browserNotifEnable: 'फोन/ब्राउज़र अलर्ट चालू करीं',
+      browserNotifGranted: 'ब्राउज़र नोटिफिकेशन चालू बा',
+      browserNotifDenied: 'ब्राउज़र अलर्ट बंद बा (ऐप में सूचना दिखी)',
+      browserNotifUnsupported: 'ऐप के अंदर तुरंत अलर्ट चालू बा',
+      createTitle: 'नया भाव अलर्ट बनाईं',
+      cropLabel: 'फसल चुनीं',
+      directionLabel: 'कब अलर्ट मिली?',
+      aboveLabel: 'भाव ऊपर जाला (≥)',
+      belowLabel: 'भाव नीचे आवे (≤)',
+      thresholdLabel: 'लक्ष्य भाव (₹ / क्विंटल)',
+      preferredMandisLabel: 'पसंदीदा मंडी चुनीं',
+      saveAlertBtn: 'अलर्ट सेव करीं',
+      checkLiveNowBtn: 'ताजा भाव जांचीं',
+      simulateSurgeBtn: 'भाव बढ़त (+₹100) जांचीं',
+      activeRulesTitle: 'चालू भाव अलर्ट नियम',
+      noRulesText: 'अभी कवनो अलर्ट नइखे बनल। ऊपर से आपन मंडी के लक्ष्य भाव सेट करीं।',
+      historyTitle: 'आइल सूचनाएं',
+      noHistoryText: 'अभी कवनो अलर्ट ना आइल बा। भाव पार होखते ही इहाँ दिखी।',
+      markAllRead: 'सब पढ़ लिहल गइल',
+      clearHistory: 'साफ करीं',
+      deleteRule: 'हटाईं',
+      currentRateLabel: 'मौजूदा भाव',
+      dismissToast: 'बंद करीं',
     },
     map: {
       title: 'मंडी के नक्शा, रास्ता आ लगले कोल्ड स्टोर',
@@ -666,6 +1047,16 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       placeholder: 'कवनो सवाल इहाँ लिखीं...',
       openAria: 'मंडीमित्र AI मददगार खोलीं',
       closeAria: 'मंडीमित्र AI मददगार बंद करीं',
+      liveDataLabel: 'लाइव डेटा:',
+      autoLabel: 'ऑटो',
+      searchLabel: 'सर्च',
+      mapsLabel: 'नक्शा',
+      thinkingLabel: 'मंडी डेटा जांचल जाता...',
+      checkingMapsLabel: 'Google Maps जांचल जाता...',
+      retryBtn: 'फिर कोशिश करीं',
+      webSourcesLabel: 'वेब स्रोत:',
+      mapsSourcesLabel: 'Google Maps जगह:',
+      timeoutError: 'जवाब में देरी हो गइल। कृपया फिर कोशिश करीं।',
     },
   },
   en: {
@@ -779,13 +1170,102 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       tapToAsk: 'Tap a quick question',
     },
     community: {
+      eyebrow: 'Kisan Chaupal · Verified UP Farmer Discussions & Anti-Scam Moderation',
       title: 'Kisan Chaupal — Farmer Community',
       subtitle: 'Discuss mandi rates, crop care, and storage tips with UP farmers. Protected by scam moderation.',
       newPost: 'New Post',
+      closeComposer: 'Close',
       modDesk: 'Moderator Desk',
       helpful: 'Helpful',
+      commentSingular: 'Comment',
       comments: 'Comments',
       report: 'Report',
+      verifiedBadge: 'Verified Advisory',
+      lockedBadge: 'Locked',
+      hiddenBadge: 'Hidden by Moderator',
+      searchPlaceholder: 'Search crop, mandi, or topic...',
+      sortNewest: 'Latest',
+      sortHelpful: 'Most Helpful',
+      emptyState: 'No discussions match your current search or category.',
+      resetFilters: 'Reset filters',
+      noCommentsYet: 'No comments yet. Share your experience or ask a follow-up question.',
+      commentsLockedNotice: 'Comments are locked by a moderator on this thread.',
+      yourNamePlaceholder: 'Your name',
+      replyPlaceholder: 'Add a helpful reply or mandi update...',
+      replyBtn: 'Reply',
+      composerTitle: 'Start a Discussion on Kisan Chaupal',
+      composerGuardNote: 'Protected by automated anti-scam & respectful language screening',
+      fieldName: 'Your Name',
+      fieldDistrict: 'District',
+      fieldCategory: 'Topic Category',
+      fieldCrop: 'Related Crop',
+      generalFarming: 'General Farming',
+      fieldHeadline: 'Headline',
+      fieldHeadlinePlaceholder: 'e.g., Sikandra Mandi Agra morning rates for Chipsona potato',
+      fieldDetails: 'Details (mandi rates, moisture experience, storage or farming tip)',
+      fieldDetailsPlaceholder: 'Share helpful, factual observations for fellow farmers...',
+      cancelBtn: 'Cancel',
+      publishBtn: 'Publish Post',
+      errFillRequired: 'Please fill in your name, post title, and discussion details.',
+      errEmptyComment: 'Please write a comment before posting.',
+      errModGuardPrefix: 'Moderation Guard blocked this post:',
+      modQueueTitle: 'Community Moderation Queue',
+      modQueueSubtitle: 'Review auto-flagged scam posts and farmer reports. You can also Pin, Lock, or Hide any post in the feed below.',
+      modAllClear: 'All clear — no pending flagged or reported posts in the moderation queue.',
+      modApprove: 'Approve & Publish',
+      modRestore: 'Restore',
+      modRemoveHide: 'Remove / Hide',
+      modPin: 'Pin',
+      modUnpin: 'Unpin',
+      modLock: 'Lock',
+      modUnlock: 'Unlock',
+      modHide: 'Hide',
+      reportModalTitle: 'Report to Community Moderators',
+      reportFlagging: 'Flagging:',
+      reportReasonLegend: 'Reason for reporting',
+      reportSubmitBtn: 'Submit Report',
+      reportReasons: [
+        'Middleman Scam / Advance Fee Fraud',
+        'Abusive or Disrespectful Language',
+        'Misleading Price or MSP Information',
+        'Spam / Off-Topic Advertisement',
+      ],
+      categories: {
+        All: 'All',
+        'Market Rates': 'Market Rates',
+        'Crop Care': 'Crop Care',
+        'Storage & Cold Store': 'Storage & Cold Store',
+        'MSP & Schemes': 'MSP & Schemes',
+        Transport: 'Transport',
+      },
+    },
+    alerts: {
+      buttonLabel: 'Price Alerts',
+      modalTitle: 'Mandi Price Threshold Alerts',
+      modalSubtitle: 'Get instant local notifications when your selected crop crosses your target rate in preferred mandis.',
+      browserNotifEnable: 'Enable Browser Notifications',
+      browserNotifGranted: 'Browser Notifications Enabled',
+      browserNotifDenied: 'Browser notifications blocked (In-app alerts active)',
+      browserNotifUnsupported: 'In-app live alerts active',
+      createTitle: 'Create Price Alert',
+      cropLabel: 'Selected Crop',
+      directionLabel: 'Trigger Condition',
+      aboveLabel: 'Crosses Above (≥)',
+      belowLabel: 'Drops Below (≤)',
+      thresholdLabel: 'Target Price (₹ / Quintal)',
+      preferredMandisLabel: 'Preferred Mandis',
+      saveAlertBtn: 'Save Alert Rule',
+      checkLiveNowBtn: 'Check Rates Now',
+      simulateSurgeBtn: 'Test +₹100 Surge',
+      activeRulesTitle: 'Active Alert Rules',
+      noRulesText: 'No price alerts yet. Set a target price for your preferred mandis above.',
+      historyTitle: 'Triggered Notifications',
+      noHistoryText: 'No price alerts triggered yet. You will be alerted as soon as a mandi crosses your threshold.',
+      markAllRead: 'Mark all read',
+      clearHistory: 'Clear',
+      deleteRule: 'Remove',
+      currentRateLabel: 'Current rate',
+      dismissToast: 'Dismiss',
     },
     map: {
       title: 'Live Mandi Map, Routes & Nearby Cold Stores',
@@ -803,6 +1283,16 @@ export const TRANSLATIONS: Record<LanguageCode, UiStrings> = {
       placeholder: 'Ask anything here...',
       openAria: 'Open MandiMitra AI Chatbot',
       closeAria: 'Close MandiMitra AI Chatbot',
+      liveDataLabel: 'Live Data:',
+      autoLabel: 'Auto',
+      searchLabel: 'Search',
+      mapsLabel: 'Maps',
+      thinkingLabel: 'Checking mandi data...',
+      checkingMapsLabel: 'Checking Google Maps...',
+      retryBtn: 'Retry',
+      webSourcesLabel: 'Verified Web Sources:',
+      mapsSourcesLabel: 'Google Maps Places & Links:',
+      timeoutError: 'Request took too long. Please check your connection and tap Retry.',
     },
   },
 };

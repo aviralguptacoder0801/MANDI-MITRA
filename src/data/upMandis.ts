@@ -124,9 +124,13 @@ export type ForumCategory =
 export interface ForumComment {
   id: string;
   authorName: string;
+  authorNameHi?: string;
   district: string;
+  districtHi?: string;
   createdAt: string;
+  createdAtHi?: string;
   body: string;
+  bodyHi?: string;
   hidden?: boolean;
   reportedCount?: number;
   reportReason?: string;
@@ -135,12 +139,17 @@ export interface ForumComment {
 export interface ForumPost {
   id: string;
   title: string;
+  titleHi?: string;
   body: string;
+  bodyHi?: string;
   category: ForumCategory;
   cropTag: CropId | 'general';
   authorName: string;
+  authorNameHi?: string;
   district: string;
+  districtHi?: string;
   createdAt: string;
+  createdAtHi?: string;
   helpfulCount: number;
   upvotedByUser?: boolean;
   pinned?: boolean;
@@ -150,6 +159,7 @@ export interface ForumPost {
   reportReasons: string[];
   autoFlagged?: boolean;
   autoFlagReason?: string;
+  autoFlagReasonHi?: string;
   comments: ForumComment[];
 }
 
@@ -666,12 +676,17 @@ export const INITIAL_FORUM_POSTS: ForumPost[] = [
   {
     id: 'post-101',
     title: 'Dubagga Mandi (Lucknow) paying ₹190/qtl extra for dry 3797 Aloo today',
+    titleHi: 'दुबग्गा मंडी (लखनऊ) में आज सूखे 3797 आलू पर ₹190/क्विंटल ज्यादा मिल रहे हैं',
     body: 'Took 22 quintals from Barabanki early morning via shared truck. Nawabganj yard had a 4-hour tractor queue and traders were cutting ₹120/qtl citing damp soil. At Dubagga, dry bold tubers sold cleanly at ₹1,640/qtl with 2% commission. Always sun-dry tubers for 3–4 hours before bagging.',
+    bodyHi: 'सुबह बाराबंकी से साझा ट्रक में 22 क्विंटल आलू ले गया था। नवाबगंज मंडी में 4 घंटे की ट्रैक्टर लाइन थी और व्यापारी गीली मिट्टी बताकर ₹120/क्विंटल काट रहे थे। दुबग्गा मंडी में साफ सूखा मोटा आलू ₹1,640/क्विंटल पर 2% आढ़त के साथ बिक गया। बोरी भरने से पहले आलू को 3–4 घंटे धूप में जरूर सुखाएं।',
     category: 'Market Rates',
     cropTag: 'aloo',
     authorName: 'Harishchandra Patel',
+    authorNameHi: 'हरिश्चंद्र पटेल',
     district: 'Barabanki',
+    districtHi: 'बाराबंकी',
     createdAt: '2 hours ago',
+    createdAtHi: '2 घंटे पहले',
     helpfulCount: 28,
     pinned: true,
     reportedCount: 0,
@@ -680,28 +695,41 @@ export const INITIAL_FORUM_POSTS: ForumPost[] = [
       {
         id: 'c-1',
         authorName: 'Vinod Kumar',
+        authorNameHi: 'विनोद कुमार',
         district: 'Lucknow',
+        districtHi: 'लखनऊ',
         createdAt: '1 hour ago',
+        createdAtHi: '1 घंटे पहले',
         body: 'Confirmed! Gate entry was smooth before 7 AM today. Arhatiyas are specifically asking for 45mm+ bold sorting.',
+        bodyHi: 'बिल्कुल सही जानकारी! आज सुबह 7 बजे से पहले गेट एंट्री बहुत आसानी से हुई। आढ़ती खासकर 45mm+ मोटे छंटे हुए आलू मांग रहे हैं।',
       },
       {
         id: 'c-2',
         authorName: 'Savitri Devi (FPO Lead)',
+        authorNameHi: 'सावित्री देवी (FPO प्रमुख)',
         district: 'Barabanki',
+        districtHi: 'बाराबंकी',
         createdAt: '42 mins ago',
+        createdAtHi: '42 मिनट पहले',
         body: 'Our Dewa FPO truck leaves tomorrow 4:30 AM for Dubagga—22 quintal space is still open in Transport Pools.',
+        bodyHi: 'हमारा देवा FPO ट्रक कल सुबह 4:30 बजे दुबग्गा मंडी जाएगा — साझा ट्रक पूल में अभी 22 क्विंटल जगह खाली है।',
       },
     ],
   },
   {
     id: 'post-102',
     title: 'How to pass UP e-Kharid Paddy MSP moisture test without rejection?',
+    titleHi: 'यूपी e-खरीद सरकारी धान MSP केंद्र पर नमी जांच में बिना रिजेक्शन पास कैसे हों?',
     body: 'At Prayagraj and Barabanki government paddy centers, moisture meter strictly requires 17% or lower. Last week my lot measured 19.2% and almost got turned away. Spreading the grain in a 2-inch thin layer on tarpaulin for one sunny afternoon brought it down to 16.4%, and I got full ₹2,320/qtl Grade-A MSP via DBT in 36 hours.',
+    bodyHi: 'प्रयागराज और बाराबंकी के सरकारी धान क्रय केंद्रों पर नमी मीटर में 17% या उससे कम नमी जरूरी है। पिछले हफ्ते मेरे धान में 19.2% नमी निकली थी। तिरपाल पर 2 इंच पतली परत में एक दोपहर धूप में सुखाने से नमी 16.4% आ गई और 36 घंटे में खाते में पूरा ₹2,320/क्विंटल ग्रेड-A MSP आ गया।',
     category: 'MSP & Schemes',
     cropTag: 'dhaan',
     authorName: 'Rameshwar Mishra',
+    authorNameHi: 'रामेश्वर मिश्रा',
     district: 'Prayagraj',
+    districtHi: 'प्रयागराज',
     createdAt: '5 hours ago',
+    createdAtHi: '5 घंटे पहले',
     helpfulCount: 41,
     reportedCount: 0,
     reportReasons: [],
@@ -709,21 +737,30 @@ export const INITIAL_FORUM_POSTS: ForumPost[] = [
       {
         id: 'c-3',
         authorName: 'Anil Chauhan',
+        authorNameHi: 'अनिल चौहान',
         district: 'Varanasi',
+        districtHi: 'वाराणसी',
         createdAt: '3 hours ago',
+        createdAtHi: '3 घंटे पहले',
         body: 'Great advice. Also bring updated Khatauni printout and check your bank NPCI seeding beforehand so DBT does not stall.',
+        bodyHi: 'बहुत बढ़िया सलाह। साथ ही ताजा खतौनी की कॉपी ले जाएं और बैंक खाते में आधार NPCI सीडिंग पहले जांच लें ताकि पैसा न अटके।',
       },
     ],
   },
   {
     id: 'post-103',
     title: 'Ventilated bamboo chawl storage cut my onion weight loss in half',
+    titleHi: 'हवादार बांस की चॉल में प्याज रखने से वजन घटने का नुकसान आधा रह गया',
     body: 'Instead of keeping Bhima Super onions in sealed plastic gunny bags where neck rot starts in 6 days, we stacked them on raised bamboo slats with 1-foot air flow underneath. Held for 10 days waiting for Varanasi Paharia prices to cross ₹2,850/qtl—shrinkage stayed under 3%.',
+    bodyHi: 'भीमा सुपर प्याज को बंद प्लास्टिक बोरी में रखने से 6 दिन में सड़न शुरू हो जाती है। हमने नीचे 1 फुट हवा की जगह छोड़कर बांस के मचान पर फैलाया। वाराणसी पहड़िया मंडी में ₹2,850/क्विंटल भाव आने तक 10 दिन रोका और सूखने का नुकसान 3% से भी कम रहा।',
     category: 'Storage & Cold Store',
     cropTag: 'pyaz',
     authorName: 'Pradeep Kushwaha',
+    authorNameHi: 'प्रदीप कुशवाहा',
     district: 'Varanasi',
+    districtHi: 'वाराणसी',
     createdAt: 'Yesterday',
+    createdAtHi: 'कल',
     helpfulCount: 19,
     reportedCount: 0,
     reportReasons: [],
@@ -732,17 +769,23 @@ export const INITIAL_FORUM_POSTS: ForumPost[] = [
   {
     id: 'post-104',
     title: 'Urgent!! Send ₹500 advance UPI to lock ₹3,200/qtl wheat buyer guaranteed!!',
+    titleHi: 'जरूरी!! ₹3,200/क्विंटल गेहूं पक्का बेचने के लिए तुरंत ₹500 UPI एडवांस भेजें!!',
     body: 'Guaranteed double MSP rate! Send ₹500 registration fee and share OTP on WhatsApp immediately to book private truck pickup today. Limited slots!',
+    bodyHi: 'गारंटीड दोगुना भाव! आज ही ट्रक बुकिंग के लिए ₹500 रजिस्ट्रेशन फीस और व्हाट्सऐप पर OTP तुरंत भेजें। सीमित जगह!',
     category: 'Market Rates',
     cropTag: 'gehu',
     authorName: 'QuickTrade_Agent99',
+    authorNameHi: 'QuickTrade_Agent99',
     district: 'Kanpur Dehat',
+    districtHi: 'कानपुर देहात',
     createdAt: '3 hours ago',
+    createdAtHi: '3 घंटे पहले',
     helpfulCount: 0,
     reportedCount: 3,
     reportReasons: ['Middleman Scam / Advance Fee Fraud', 'Misleading Price Claim'],
     autoFlagged: true,
     autoFlagReason: 'Suspicious advance fee / OTP request pattern detected.',
+    autoFlagReasonHi: 'संदिग्ध एडवांस फीस / OTP ठगी का पैटर्न पकड़ा गया।',
     comments: [],
   },
 ];

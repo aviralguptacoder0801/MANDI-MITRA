@@ -59,30 +59,52 @@ function buildToolConfig(
   return cfg;
 }
 
+const QUOTA_COOLDOWN_MS = 5 * 60 * 1000;
+const quotaCooldownUntil = new Map<string, number>();
+
+function attemptKey(attempt: GeminiAttempt): string {
+  return `${attempt.model}:${attempt.tool}`;
+}
+
+function isQuotaError(err: unknown): boolean {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED');
+}
+
 async function runGeminiAttemptPlan<T>(
   preferredTool: GroundingToolChoice,
   executor: (attempt: GeminiAttempt) => Promise<T>
 ): Promise<{ result: T; attempt: GeminiAttempt }> {
-  const plan = buildGeminiAttemptPlan(preferredTool);
+  const fullPlan = buildGeminiAttemptPlan(preferredTool);
+  const now = Date.now();
+
+  // Prioritize attempts that are not currently in a 429 quota cooldown window
+  const freshAttempts = fullPlan.filter((a) => (quotaCooldownUntil.get(attemptKey(a)) ?? 0) <= now);
+  const cooledAttempts = fullPlan.filter((a) => (quotaCooldownUntil.get(attemptKey(a)) ?? 0) > now);
+  const orderedPlan = [...freshAttempts, ...cooledAttempts];
+
   let lastError: unknown = null;
 
-  for (let i = 0; i < plan.length; i++) {
-    const attempt = plan[i];
+  for (let i = 0; i < orderedPlan.length; i++) {
+    const attempt = orderedPlan[i];
     try {
       const result = await executor(attempt);
+      quotaCooldownUntil.delete(attemptKey(attempt));
       return { result, attempt };
     } catch (err) {
       lastError = err;
       const errMsg = err instanceof Error ? err.message : String(err);
+      if (isQuotaError(err)) {
+        quotaCooldownUntil.set(attemptKey(attempt), Date.now() + QUOTA_COOLDOWN_MS);
+      }
       console.error(
-        `[MandiMitra Gemini] Attempt ${i + 1}/${plan.length} (${attempt.model}, tool=${attempt.tool}) failed:`,
-        errMsg.slice(0, 300)
+        `[MandiMitra Gemini] Attempt ${i + 1}/${orderedPlan.length} (${attempt.model}, tool=${attempt.tool}) failed:`,
+        errMsg.slice(0, 260)
       );
-      if (!isRetryableGeminiError(err) || i === plan.length - 1) {
+      if (!isRetryableGeminiError(err) || i === orderedPlan.length - 1) {
         throw err;
       }
-      // Brief backoff before trying the next model/tool combination
-      await new Promise((resolve) => setTimeout(resolve, 250 * (i + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 150));
     }
   }
 
@@ -316,18 +338,19 @@ ${JSON.stringify(context ?? {}, null, 2)}`;
       }
 
       const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType,
-                data: imageBase64,
+      const { result: response } = await runGeminiAttemptPlan('none', async (attemptItem) => {
+        const r = await ai.models.generateContent({
+          model: attemptItem.model,
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType,
+                  data: imageBase64,
+                },
               },
-            },
-            {
-              text: `Inspect this photograph of ${cropName} from an Uttar Pradesh mandi lot as an AGMARK agricultural quality grader.
+              {
+                text: `Inspect this photograph of ${cropName} from an Uttar Pradesh mandi lot as an AGMARK agricultural quality grader.
 Estimate realistic mandi gate quality metrics:
 - moisturePercent (realistic percentage for this crop)
 - damagePercent (visible cuts, sprouting, shriveling, bruising, or discoloration %)
@@ -336,34 +359,41 @@ Estimate realistic mandi gate quality metrics:
 - gradeTier ("premium", "faq", or "commercial")
 - visualSummary (2 concise sentences noting skin/grain luster, uniformity, and any defects so the farmer can negotiate fairly at the mandi gate)
 - negotiationTip (1 practical sentence telling the farmer how to defend this grade against middlemen deductions).`,
-            },
-          ],
-        },
-        config: {
-          responseMimeType: 'application/json',
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              moisturePercent: { type: Type.NUMBER },
-              damagePercent: { type: Type.NUMBER },
-              foreignMatterPercent: { type: Type.NUMBER },
-              sizeGrade: { type: Type.STRING },
-              gradeTier: { type: Type.STRING },
-              visualSummary: { type: Type.STRING },
-              negotiationTip: { type: Type.STRING },
-            },
-            required: [
-              'moisturePercent',
-              'damagePercent',
-              'foreignMatterPercent',
-              'sizeGrade',
-              'gradeTier',
-              'visualSummary',
-              'negotiationTip',
+              },
             ],
           },
-        },
+          config: {
+            responseMimeType: 'application/json',
+            ...(attemptItem.model === 'gemini-4-hydrogen'
+              ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }
+              : {}),
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                moisturePercent: { type: Type.NUMBER },
+                damagePercent: { type: Type.NUMBER },
+                foreignMatterPercent: { type: Type.NUMBER },
+                sizeGrade: { type: Type.STRING },
+                gradeTier: { type: Type.STRING },
+                visualSummary: { type: Type.STRING },
+                negotiationTip: { type: Type.STRING },
+              },
+              required: [
+                'moisturePercent',
+                'damagePercent',
+                'foreignMatterPercent',
+                'sizeGrade',
+                'gradeTier',
+                'visualSummary',
+                'negotiationTip',
+              ],
+            },
+          },
+        });
+        if (!(r.text ?? '').trim()) {
+          throw new Error('EMPTY_RESPONSE');
+        }
+        return r;
       });
 
       const rawText = (response.text ?? '{}').trim();
